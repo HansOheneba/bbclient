@@ -176,14 +176,22 @@ export default function CategoryNav({
               {/* Sliding underline indicator */}
               <span
                 aria-hidden="true"
-                className={cn(
-                  "absolute bottom-0 h-0.5 rounded-full",
-                  "bg-emerald-400",
-                  "transition-[transform,width] duration-300 ease-out",
-                )}
+                className="absolute bottom-0 h-[3px] rounded-full transition-[transform,width] duration-300 ease-out"
                 style={{
                   width: `${indicator.width}px`,
                   transform: `translateX(${indicator.left}px)`,
+
+                  // Neon gradient based on #b94888
+                  background:
+                    "linear-gradient(90deg, #ff7bb8 0%, #b94888 50%, #ff7bb8 100%)",
+
+                  // Neon glow layers
+                  boxShadow: `
+      0 0 6px rgba(185,72,136,0.9),
+      0 0 12px rgba(185,72,136,0.8),
+      0 0 20px rgba(185,72,136,0.6),
+      0 0 30px rgba(185,72,136,0.4)
+    `,
                 }}
               />
             </div>
