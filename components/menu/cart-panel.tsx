@@ -4,7 +4,12 @@ import { Plus, Minus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { type CartLine, toppings, formatGhs } from "@/lib/menu-data";
+import {
+  type CartLine,
+  toppings,
+  spiceLevels,
+  formatGhs,
+} from "@/lib/menu-data";
 
 type CartPanelProps = {
   cart: CartLine[];
@@ -71,6 +76,18 @@ export default function CartPanel({
                         + {paidToppingLabels.join(", ")}
                       </p>
                     ) : null}
+                    {l.sugarLevel !== null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        🍬 Sugar: {l.sugarLevel}%
+                      </p>
+                    )}
+                    {l.spiceLevel !== null && l.spiceLevel > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        🌶️ Spice:{" "}
+                        {spiceLevels.find((s) => s.value === l.spiceLevel)
+                          ?.label ?? "None"}
+                      </p>
+                    )}
                     {l.note ? (
                       <p className="text-xs text-muted-foreground mt-1 italic">
                         📝 {l.note}

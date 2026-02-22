@@ -9,6 +9,7 @@ import {
   type CategoryKey,
   categories,
   formatGhs,
+  isDrink,
 } from "@/lib/menu-data";
 
 type MenuGridProps = {
@@ -34,9 +35,8 @@ export default function MenuGrid({
           </p>
         </div>
 
-        {/* helper badges */}
+        {/* helper badge */}
         <div className="hidden sm:flex items-center gap-2">
-          <Badge variant="secondary">Cup sizes: 500ml / 700ml</Badge>
           <Badge variant="secondary">Call: 0536440126</Badge>
         </div>
       </div>
@@ -80,9 +80,9 @@ export default function MenuGrid({
                         ? `From ${formatGhs(fromPrice)}`
                         : formatGhs(fromPrice)}
                     </p>
-                    {hasMany && item.category !== "shawarma" && (
+                    {hasMany && isDrink(item) && (
                       <p className="text-xs text-muted-foreground">
-                        500ml / 700ml
+                        {item.options.map((o) => o.label).join(" / ")}
                       </p>
                     )}
                   </div>
@@ -100,12 +100,12 @@ export default function MenuGrid({
       </div>
 
       {/* Extras note */}
-      <div className="mt-6 rounded-2xl border bg-card p-4">
+      {/* <div className="mt-6 rounded-2xl border bg-card p-4">
         <p className="text-sm">
           Extras are optional. We can tighten topping rules in the next step,
           for example toppings only for drinks.
         </p>
-      </div>
+      </div> */}
     </section>
   );
 }

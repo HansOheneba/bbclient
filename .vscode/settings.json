@@ -2,6 +2,7 @@
   "chat.tools.terminal.autoApprove": {
     "npx next": true,
     "mkdir": true,
-    "mv": true
+    "mv": true,
+    "npx shadcn@latest": true
   }
 }

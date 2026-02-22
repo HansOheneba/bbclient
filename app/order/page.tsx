@@ -16,6 +16,8 @@ import {
   type MenuItem,
   menu,
   toppings,
+  isDrink,
+  isShawarma,
 } from "@/lib/menu-data";
 
 function calcToppingExtras(
@@ -43,6 +45,8 @@ export default function Home() {
     React.useState<string>("default");
   const [freeToppingId, setFreeToppingId] = React.useState<string | null>(null);
   const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
+  const [sugarLevel, setSugarLevel] = React.useState<number>(50);
+  const [spiceLevel, setSpiceLevel] = React.useState<number>(2);
   const [itemNote, setItemNote] = React.useState<string>("");
 
   // ── Derived values ───────────────────────
@@ -72,6 +76,8 @@ export default function Home() {
     setSelectedOptionKey(first ? first.key : "default");
     setFreeToppingId(null);
     setSelectedToppings([]);
+    setSugarLevel(50);
+    setSpiceLevel(2);
     setItemNote("");
   }
 
@@ -80,14 +86,22 @@ export default function Home() {
     optionKey: string,
     freeTopping: string | null,
     toppingIds: string[],
+    sugar: number,
+    spice: number,
     note: string,
   ) {
     const option =
       item.options.find((o) => o.key === optionKey) ?? item.options[0];
     if (!option) return;
 
+    const shawarma = isShawarma(item);
     const trimmedNote = note.trim();
-    const signature = `${item.id}|${option.key}|${freeTopping ?? ""}|${toppingIds.slice().sort().join(",")}|${trimmedNote}`;
+    const sugarVal = isDrink(item) ? sugar : null;
+    const spiceVal = shawarma ? spice : null;
+    // For shawarma, toppings are not applicable
+    const finalFreeTopping = shawarma ? null : freeTopping;
+    const finalToppingIds = shawarma ? [] : toppingIds;
+    const signature = `${item.id}|${option.key}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}|${trimmedNote}`;
 
     setCart((prev) => {
       const existing = prev.find(
@@ -95,7 +109,10 @@ export default function Home() {
           `${l.itemId}|${l.optionKey}|${l.freeToppingId ?? ""}|${l.toppingIds
             .slice()
             .sort()
-            .join(",")}|${l.note}` === signature,
+            .join(
+              ",",
+            )}|${l.sugarLevel ?? ""}|${l.spiceLevel ?? ""}|${l.note}` ===
+          signature,
       );
 
       if (existing) {
@@ -112,8 +129,10 @@ export default function Home() {
         optionLabel: option.label,
         unitPriceGhs: option.priceGhs,
         quantity: 1,
-        freeToppingId: freeTopping,
-        toppingIds,
+        freeToppingId: finalFreeTopping,
+        toppingIds: finalToppingIds,
+        sugarLevel: sugarVal,
+        spiceLevel: spiceVal,
         note: trimmedNote,
       };
 
@@ -274,6 +293,10 @@ export default function Home() {
         onFreeToppingChange={setFreeToppingId}
         selectedToppings={selectedToppings}
         onToppingsChange={setSelectedToppings}
+        sugarLevel={sugarLevel}
+        onSugarLevelChange={setSugarLevel}
+        spiceLevel={spiceLevel}
+        onSpiceLevelChange={setSpiceLevel}
         note={itemNote}
         onNoteChange={setItemNote}
         onAddToCart={() => {
@@ -283,6 +306,8 @@ export default function Home() {
               selectedOptionKey,
               freeToppingId,
               selectedToppings,
+              sugarLevel,
+              spiceLevel,
               itemNote,
             );
             setOpenItemId(null);

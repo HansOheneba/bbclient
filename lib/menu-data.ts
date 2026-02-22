@@ -41,6 +41,8 @@ export type CartLine = {
   freeToppingId: string | null;
   toppingIds: string[];
   note: string;
+  sugarLevel: number | null; // null for non-drink items
+  spiceLevel: number | null; // null for non-shawarma items
 };
 
 // ── Categories ───────────────────────────────
@@ -288,7 +290,7 @@ export const menu: MenuItem[] = [
     name: "Chicken Shawarma",
     description: "Juicy chicken with fresh veg and signature sauce.",
     category: "shawarma",
-    image: "/boba.jpg",
+    image: "/shawarma.jpg",
     options: [
       { key: "S", label: "Small", priceGhs: 40 },
       { key: "L", label: "Large", priceGhs: 50 },
@@ -299,7 +301,7 @@ export const menu: MenuItem[] = [
     name: "Beef Shawarma",
     description: "Savory beef wrap with fresh veg and signature sauce.",
     category: "shawarma",
-    image: "/boba.jpg",
+    image: "/shawarma.jpg",
     options: [
       { key: "S", label: "Small", priceGhs: 45 },
       { key: "L", label: "Large", priceGhs: 55 },
@@ -310,10 +312,44 @@ export const menu: MenuItem[] = [
     name: "Mixed Shawarma",
     description: "Chicken + beef combo for the full experience.",
     category: "shawarma",
-    image: "/boba.jpg",
+    image: "/shawarma.jpg",
     options: [{ key: "default", label: "Regular", priceGhs: 65 }],
   },
 ];
+
+// ── Sugar levels ─────────────────────────────
+export const sugarLevels = [
+  { value: 0, label: "0%" },
+  { value: 25, label: "25%" },
+  { value: 50, label: "50%" },
+  { value: 75, label: "75%" },
+  { value: 100, label: "100%" },
+] as const;
+
+// ── Spice levels ─────────────────────────────
+export const spiceLevels = [
+  { value: 0, label: "None" },
+  { value: 1, label: "Mild" },
+  { value: 2, label: "Medium" },
+  { value: 3, label: "Hot" },
+  { value: 4, label: "Extra Hot" },
+] as const;
+
+// ── Drink detection ──────────────────────────
+const drinkCategories = new Set<CategoryKey>([
+  "milk-tea",
+  "hq-special",
+  "iced-tea",
+  "milkshakes",
+]);
+
+export function isDrink(item: MenuItem): boolean {
+  return drinkCategories.has(item.category);
+}
+
+export function isShawarma(item: MenuItem): boolean {
+  return item.category === "shawarma";
+}
 
 // ── Helpers ──────────────────────────────────
 export function formatGhs(value: number): string {

@@ -13,7 +13,16 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { toppings, formatGhs, type MenuItem } from "@/lib/menu-data";
+import { Slider } from "@/components/ui/slider";
+import {
+  toppings,
+  sugarLevels,
+  spiceLevels,
+  formatGhs,
+  isDrink,
+  isShawarma,
+  type MenuItem,
+} from "@/lib/menu-data";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -29,6 +38,10 @@ type ItemSheetProps = {
   onFreeToppingChange: (id: string | null) => void;
   selectedToppings: string[];
   onToppingsChange: (toppings: string[]) => void;
+  sugarLevel: number;
+  onSugarLevelChange: (level: number) => void;
+  spiceLevel: number;
+  onSpiceLevelChange: (level: number) => void;
   note: string;
   onNoteChange: (note: string) => void;
   onAddToCart: () => void;
@@ -44,6 +57,10 @@ export default function ItemSheet({
   onFreeToppingChange,
   selectedToppings,
   onToppingsChange,
+  sugarLevel,
+  onSugarLevelChange,
+  spiceLevel,
+  onSpiceLevelChange,
   note,
   onNoteChange,
   onAddToCart,
@@ -60,13 +77,29 @@ export default function ItemSheet({
     onFreeToppingChange(freeToppingId === id ? null : id);
   }
 
+  const itemIsDrink = item ? isDrink(item) : false;
+  const itemIsShawarma = item ? isShawarma(item) : false;
+  const sugarLabel =
+    sugarLevels.find((s) => s.value === sugarLevel)?.label ?? `${sugarLevel}%`;
+  const spiceLabel =
+    spiceLevels.find((s) => s.value === spiceLevel)?.label ?? "None";
+
   function buildIntentSentence(args: {
     itemName: string;
     optionLabel?: string;
     freeToppingName?: string | null;
     paidToppingNames: string[];
+    sugarPct?: string | null;
+    spiciness?: string | null;
   }) {
-    const { itemName, optionLabel, freeToppingName, paidToppingNames } = args;
+    const {
+      itemName,
+      optionLabel,
+      freeToppingName,
+      paidToppingNames,
+      sugarPct,
+      spiciness,
+    } = args;
 
     const base = optionLabel ? `${itemName} (${optionLabel})` : itemName;
 
@@ -81,16 +114,21 @@ export default function ItemSheet({
                 paidToppingNames[paidToppingNames.length - 1]
               }`;
 
+    const sugarSuffix = sugarPct ? ` at ${sugarPct} sugar` : "";
+    const spiceSuffix =
+      spiciness && spiciness !== "None" ? `, ${spiciness} spice` : "";
+    const suffix = `${sugarSuffix}${spiceSuffix}`;
+
     if (!freeToppingName && paidToppingNames.length === 0) {
-      return `I am ordering ${base}.`;
+      return `I am ordering ${base}${suffix}.`;
     }
     if (freeToppingName && paidToppingNames.length === 0) {
-      return `I am ordering ${base} with ${freeToppingName}.`;
+      return `I am ordering ${base} with ${freeToppingName}${suffix}.`;
     }
     if (freeToppingName && paidToppingNames.length > 0) {
-      return `I am ordering ${base} with ${freeToppingName} plus ${paidPretty}.`;
+      return `I am ordering ${base} with ${freeToppingName} plus ${paidPretty}${suffix}.`;
     }
-    return `I am ordering ${base} with ${paidPretty}.`;
+    return `I am ordering ${base} with ${paidPretty}${suffix}.`;
   }
 
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -171,7 +209,10 @@ export default function ItemSheet({
                 <>
                   {/* Product image banner */}
                   {item.image && (
-                    <div className="relative w-full h-48 -mt-4 -mx-4 mb-4" style={{ width: 'calc(100% + 2rem)' }}>
+                    <div
+                      className="relative w-full h-48 -mt-4 -mx-4 mb-4"
+                      style={{ width: "calc(100% + 2rem)" }}
+                    >
                       <Image
                         src={item.image}
                         alt={item.name}
@@ -192,7 +233,7 @@ export default function ItemSheet({
                     {/* Options */}
                     <div>
                       <p className="text-sm font-medium mb-2">
-                        {item.options.length > 1 && item.category !== "shawarma"
+                        {item.options.length > 1 && isDrink(item)
                           ? "Choose your size"
                           : "Choose option"}
                       </p>
@@ -219,67 +260,147 @@ export default function ItemSheet({
                       </div>
                     </div>
 
-                    {/* Free topping */}
-                    <div>
-                      <p className="text-sm font-medium mb-1">
-                        Complimentary topping
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Select one topping for free!
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {toppings.map((t) => {
-                          const active = freeToppingId === t.id;
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => selectFreeTopping(t.id)}
+                    {/* Sugar level – drinks only */}
+                    {itemIsDrink && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">Sugar level</p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Slide to pick your sweetness — {sugarLabel}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Slider
+                            min={0}
+                            max={100}
+                            step={25}
+                            value={[sugarLevel]}
+                            onValueChange={([v]) => onSugarLevelChange(v)}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-semibold w-12 text-right">
+                            {sugarLabel}
+                          </span>
+                        </div>
+                        <div className="flex justify-between mt-1 px-0.5">
+                          {sugarLevels.map((s) => (
+                            <span
+                              key={s.value}
                               className={cn(
-                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                "focus:outline-none focus:ring-2 focus:ring-ring",
-                                active
-                                  ? "bg-green-600 text-white border-green-600"
-                                  : "bg-card hover:bg-accent/20",
+                                "text-[10px]",
+                                s.value === sugarLevel
+                                  ? "text-foreground font-medium"
+                                  : "text-muted-foreground",
                               )}
                             >
-                              {t.name} {active ? "• FREE" : ""}
-                            </button>
-                          );
-                        })}
+                              {s.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Paid toppings */}
-                    <div>
-                      <p className="text-sm font-medium mb-1">
-                        Additional toppings
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Want more? Each extra topping is charged.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {toppings.map((t) => {
-                          const active = selectedToppings.includes(t.id);
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => togglePaidTopping(t.id)}
+                    {/* Spiciness – shawarma only */}
+                    {itemIsShawarma && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">Spiciness</p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          How hot do you want it? — {spiceLabel}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Slider
+                            min={0}
+                            max={4}
+                            step={1}
+                            value={[spiceLevel]}
+                            onValueChange={([v]) => onSpiceLevelChange(v)}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-semibold w-20 text-right">
+                            {spiceLabel}
+                          </span>
+                        </div>
+                        <div className="flex justify-between mt-1 px-0.5">
+                          {spiceLevels.map((s) => (
+                            <span
+                              key={s.value}
                               className={cn(
-                                "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                "focus:outline-none focus:ring-2 focus:ring-ring",
-                                active
-                                  ? "bg-foreground text-background border-foreground"
-                                  : "bg-card hover:bg-accent/20",
+                                "text-[10px]",
+                                s.value === spiceLevel
+                                  ? "text-foreground font-medium"
+                                  : "text-muted-foreground",
                               )}
                             >
-                              {t.name} (+{formatGhs(t.priceGhs)})
-                            </button>
-                          );
-                        })}
+                              {s.label}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Free topping – drinks only */}
+                    {!itemIsShawarma && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">
+                          Complimentary topping
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Select one topping for free!
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {toppings.map((t) => {
+                            const active = freeToppingId === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => selectFreeTopping(t.id)}
+                                className={cn(
+                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                  "focus:outline-none focus:ring-2 focus:ring-ring",
+                                  active
+                                    ? "bg-green-600 text-white border-green-600"
+                                    : "bg-card hover:bg-accent/20",
+                                )}
+                              >
+                                {t.name} {active ? "• FREE" : ""}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Paid toppings – drinks only */}
+                    {!itemIsShawarma && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">
+                          Additional toppings
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Want more? Each extra topping is charged.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {toppings.map((t) => {
+                            const active = selectedToppings.includes(t.id);
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => togglePaidTopping(t.id)}
+                                className={cn(
+                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                  "focus:outline-none focus:ring-2 focus:ring-ring",
+                                  active
+                                    ? "bg-foreground text-background border-foreground"
+                                    : "bg-card hover:bg-accent/20",
+                                )}
+                              >
+                                {t.name} (+{formatGhs(t.priceGhs)})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <Separator />
 
@@ -322,8 +443,10 @@ export default function ItemSheet({
                           const intent = buildIntentSentence({
                             itemName: item.name,
                             optionLabel: option?.label,
-                            freeToppingName: freeName,
-                            paidToppingNames: paidNames,
+                            freeToppingName: itemIsShawarma ? null : freeName,
+                            paidToppingNames: itemIsShawarma ? [] : paidNames,
+                            sugarPct: itemIsDrink ? sugarLabel : null,
+                            spiciness: itemIsShawarma ? spiceLabel : null,
                           });
 
                           return (
