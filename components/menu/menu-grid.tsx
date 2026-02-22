@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -51,29 +52,45 @@ export default function MenuGrid({
               key={item.id}
               type="button"
               onClick={() => onItemClick(item)}
-              className="group text-left rounded-2xl border bg-card p-4 shadow-sm hover:shadow-md transition"
+              className="group text-left rounded-2xl border bg-card shadow-sm hover:shadow-md transition overflow-hidden"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold leading-5">{item.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                    {item.description}
-                  </p>
-                  <p className="mt-3 font-semibold">
-                    {hasMany
-                      ? `From ${formatGhs(fromPrice)}`
-                      : formatGhs(fromPrice)}
-                  </p>
-                  {hasMany && item.category !== "shawarma" && (
-                    <p className="text-xs text-muted-foreground">
-                      500ml / 700ml
-                    </p>
-                  )}
-                </div>
+              <div className="flex">
+                {/* Product image */}
+                {item.image && (
+                  <div className="relative w-28 shrink-0">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="112px"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
 
-                <div className="shrink-0">
-                  <div className="h-10 w-10 rounded-xl border bg-background flex items-center justify-center group-hover:bg-accent/20 transition">
-                    <Plus className="h-5 w-5" />
+                {/* Text content */}
+                <div className="flex-1 min-w-0 p-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold leading-5">{item.name}</p>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                      {item.description}
+                    </p>
+                    <p className="mt-3 font-semibold">
+                      {hasMany
+                        ? `From ${formatGhs(fromPrice)}`
+                        : formatGhs(fromPrice)}
+                    </p>
+                    {hasMany && item.category !== "shawarma" && (
+                      <p className="text-xs text-muted-foreground">
+                        500ml / 700ml
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="shrink-0">
+                    <div className="h-10 w-10 rounded-xl border bg-background flex items-center justify-center group-hover:bg-accent/20 transition">
+                      <Plus className="h-5 w-5" />
+                    </div>
                   </div>
                 </div>
               </div>

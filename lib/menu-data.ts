@@ -80,6 +80,7 @@ export const menu: MenuItem[] = [
     name: "Brown Sugar Milk",
     description: "Creamy milk tea with deep brown sugar sweetness.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -90,6 +91,7 @@ export const menu: MenuItem[] = [
     name: "Dalgona Coffee",
     description: "Coffee-forward milk tea with a smooth whipped finish.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -100,6 +102,7 @@ export const menu: MenuItem[] = [
     name: "Vanilla Bliss",
     description: "Classic vanilla milk tea, mellow and rich.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -110,6 +113,7 @@ export const menu: MenuItem[] = [
     name: "Terrific Taro",
     description: "Taro milk tea with a nutty, creamy taste.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -120,6 +124,7 @@ export const menu: MenuItem[] = [
     name: "Matcha Emerald",
     description: "Matcha milk tea with a fresh green tea kick.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -130,6 +135,7 @@ export const menu: MenuItem[] = [
     name: "Lotus",
     description: "Cookie-style sweetness with a creamy milk tea base.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [{ key: "default", label: "Regular", priceGhs: 50 }],
   },
   {
@@ -137,6 +143,7 @@ export const menu: MenuItem[] = [
     name: "Oreo",
     description: "Creamy milk tea blended with Oreo flavor.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [{ key: "default", label: "Regular", priceGhs: 50 }],
   },
   {
@@ -144,6 +151,7 @@ export const menu: MenuItem[] = [
     name: "Tiramisu",
     description: "Dessert-inspired milk tea with coffee and cream notes.",
     category: "milk-tea",
+    image: "/boba.jpg",
     options: [{ key: "default", label: "Regular", priceGhs: 50 }],
   },
 
@@ -153,6 +161,7 @@ export const menu: MenuItem[] = [
     name: "Corny Boba-Popcorn",
     description: "Crunchy popcorn vibe with boba goodness.",
     category: "hq-special",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -163,6 +172,7 @@ export const menu: MenuItem[] = [
     name: "Cheesy Mango",
     description: "Sweet mango blend topped with a cheesy twist.",
     category: "hq-special",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -173,6 +183,7 @@ export const menu: MenuItem[] = [
     name: "C3 Blaze (Chocolate Chip Cookie)",
     description: "Chocolatey cookie flavor with a creamy finish.",
     category: "hq-special",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -183,6 +194,7 @@ export const menu: MenuItem[] = [
     name: "Pina Colada (Pineapple & Coconut)",
     description: "Tropical pineapple-coconut blend, super refreshing.",
     category: "hq-special",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -193,6 +205,7 @@ export const menu: MenuItem[] = [
     name: "Cheesy Ube",
     description: "Ube flavor with a creamy cheesy layer.",
     category: "hq-special",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -205,6 +218,7 @@ export const menu: MenuItem[] = [
     name: "Fizzy Lemonade",
     description: "Sparkly lemonade, crisp and cold.",
     category: "iced-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -215,6 +229,7 @@ export const menu: MenuItem[] = [
     name: "Peach Perfect Peach",
     description: "Sweet peach iced tea with a fruity finish.",
     category: "iced-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -225,6 +240,7 @@ export const menu: MenuItem[] = [
     name: "Spiced Chai",
     description: "Chai spices served chilled for a bold taste.",
     category: "iced-tea",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -237,6 +253,7 @@ export const menu: MenuItem[] = [
     name: "Creamy Chai",
     description: "Milkshake with chai spice and creamy texture.",
     category: "milkshakes",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -247,6 +264,7 @@ export const menu: MenuItem[] = [
     name: "Bubble Gum",
     description: "Fun bubble gum milkshake, sweet and smooth.",
     category: "milkshakes",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -257,6 +275,7 @@ export const menu: MenuItem[] = [
     name: "Vanilla",
     description: "Classic vanilla milkshake, rich and creamy.",
     category: "milkshakes",
+    image: "/boba.jpg",
     options: [
       { key: "regular", label: "Regular (500ml)", priceGhs: 35 },
       { key: "large", label: "Large (700ml)", priceGhs: 40 },
@@ -269,6 +288,7 @@ export const menu: MenuItem[] = [
     name: "Chicken Shawarma",
     description: "Juicy chicken with fresh veg and signature sauce.",
     category: "shawarma",
+    image: "/boba.jpg",
     options: [
       { key: "S", label: "Small", priceGhs: 40 },
       { key: "L", label: "Large", priceGhs: 50 },
@@ -279,6 +299,7 @@ export const menu: MenuItem[] = [
     name: "Beef Shawarma",
     description: "Savory beef wrap with fresh veg and signature sauce.",
     category: "shawarma",
+    image: "/boba.jpg",
     options: [
       { key: "S", label: "Small", priceGhs: 45 },
       { key: "L", label: "Large", priceGhs: 55 },
@@ -289,6 +310,7 @@ export const menu: MenuItem[] = [
     name: "Mixed Shawarma",
     description: "Chicken + beef combo for the full experience.",
     category: "shawarma",
+    image: "/boba.jpg",
     options: [{ key: "default", label: "Regular", priceGhs: 65 }],
   },
 ];

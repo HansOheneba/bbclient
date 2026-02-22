@@ -1,246 +1,93 @@
-"use client";
+import GlassHeader from "@/components/layout/header";
+import Link from "next/link";
 
-import * as React from "react";
-
-import CategoryNav from "@/components/menu/category-nav";
-import MenuGrid from "@/components/menu/menu-grid";
-import CartPanel from "@/components/menu/cart-panel";
-import ItemModal from "@/components/menu/item-modal";
-import FloatingCartButton from "@/components/menu/floating-cart-button";
-
-import {
-  type CategoryKey,
-  type CartLine,
-  type MenuItem,
-  menu,
-  toppings,
-} from "@/lib/menu-data";
-
-function calcToppingExtras(
-  toppingIds: string[],
-  freeToppingId: string | null,
-): number {
-  return toppingIds.reduce((sum, id) => {
-    const t = toppings.find((tp) => tp.id === id);
-    return sum + (t?.priceGhs ?? 0);
-  }, 0);
-}
-
-export default function Home() {
-  // ── Category & search state ──────────────
-  const [activeCategory, setActiveCategory] =
-    React.useState<CategoryKey>("milk-tea");
-  const [query, setQuery] = React.useState<string>("");
-
-  // ── Cart state ───────────────────────────
-  const [cart, setCart] = React.useState<CartLine[]>([]);
-
-  // ── Item modal state ─────────────────────
-  const [openItemId, setOpenItemId] = React.useState<string | null>(null);
-  const [selectedOptionKey, setSelectedOptionKey] =
-    React.useState<string>("default");
-  const [freeToppingId, setFreeToppingId] = React.useState<string | null>(null);
-  const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
-  const [itemNote, setItemNote] = React.useState<string>("");
-
-  // ── Derived values ───────────────────────
-  const activeItems = React.useMemo(() => {
-    const base = menu.filter((m) => m.category === activeCategory);
-    const q = query.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) ||
-        m.description.toLowerCase().includes(q),
-    );
-  }, [activeCategory, query]);
-
-  const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
-
-  const cartTotal = cart.reduce((sum, l) => {
-    const toppingExtra = calcToppingExtras(l.toppingIds, l.freeToppingId);
-    return sum + (l.unitPriceGhs + toppingExtra) * l.quantity;
-  }, 0);
-
-  const openItem = openItemId ? menu.find((m) => m.id === openItemId) : null;
-
-  // ── Helpers ──────────────────────────────
-  function resetItemModalDefaults(item: MenuItem) {
-    const first = item.options[0];
-    setSelectedOptionKey(first ? first.key : "default");
-    setFreeToppingId(null);
-    setSelectedToppings([]);
-    setItemNote("");
-  }
-
-  function addLineToCart(
-    item: MenuItem,
-    optionKey: string,
-    freeTopping: string | null,
-    toppingIds: string[],
-    note: string,
-  ) {
-    const option =
-      item.options.find((o) => o.key === optionKey) ?? item.options[0];
-    if (!option) return;
-
-    const trimmedNote = note.trim();
-    const signature = `${item.id}|${option.key}|${freeTopping ?? ""}|${toppingIds.slice().sort().join(",")}|${trimmedNote}`;
-
-    setCart((prev) => {
-      const existing = prev.find(
-        (l) =>
-          `${l.itemId}|${l.optionKey}|${l.freeToppingId ?? ""}|${l.toppingIds
-            .slice()
-            .sort()
-            .join(",")}|${l.note}` === signature,
-      );
-
-      if (existing) {
-        return prev.map((l) =>
-          l.lineId === existing.lineId ? { ...l, quantity: l.quantity + 1 } : l,
-        );
-      }
-
-      const line: CartLine = {
-        lineId: crypto.randomUUID(),
-        itemId: item.id,
-        itemName: item.name,
-        optionKey: option.key,
-        optionLabel: option.label,
-        unitPriceGhs: option.priceGhs,
-        quantity: 1,
-        freeToppingId: freeTopping,
-        toppingIds,
-        note: trimmedNote,
-      };
-
-      return [line, ...prev];
-    });
-  }
-
-  function decLine(lineId: string) {
-    setCart((prev) =>
-      prev
-        .map((l) =>
-          l.lineId === lineId ? { ...l, quantity: l.quantity - 1 } : l,
-        )
-        .filter((l) => l.quantity > 0),
-    );
-  }
-
-  function incLine(lineId: string) {
-    setCart((prev) =>
-      prev.map((l) =>
-        l.lineId === lineId ? { ...l, quantity: l.quantity + 1 } : l,
-      ),
-    );
-  }
-
-  function removeLine(lineId: string) {
-    setCart((prev) => prev.filter((l) => l.lineId !== lineId));
-  }
-
-  // ── Time-based greeting ───────────────────
-  const greeting = React.useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning ☀️";
-    if (hour < 17) return "Good afternoon 🌤️";
-    return "Good evening 🌙";
-  }, []);
-
-  // ── Render ───────────────────────────────
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
-          <div className="leading-tight">
-            <p className="font-semibold">{greeting}</p>
-            <p className="text-xs text-muted-foreground">
-              What are we getting today?
+    <div className="relative min-h-screen bg-[#07040b] text-white overflow-hidden">
+      {/* Background gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.18),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.12),transparent_55%)]" />
+
+      <GlassHeader />
+      <div className="h-10" />
+
+      {/* Hero Section */}
+      <main className="relative z-10">
+        <section className="mx-auto max-w-7xl px-6 pt-16 pb-24 text-center">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
+              Boba, Iced Tea &{" "}
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Shawarma
+              </span>
+            </h1>
+            <p className="text-lg sm:text-xl text-white/70 max-w-xl mx-auto">
+              Handcrafted drinks and loaded shawarma, made fresh daily with
+              premium ingredients. Your bliss is just a tap away.
             </p>
-          </div>
 
-          <div className="flex-1" />
-        </div>
-
-        {/* Category chips + search */}
-        <CategoryNav
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-          query={query}
-          onQueryChange={setQuery}
-        />
-      </header>
-
-      {/* Content */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6">
-          {/* Menu grid */}
-          <MenuGrid
-            activeCategory={activeCategory}
-            items={activeItems}
-            onItemClick={(item) => {
-              setOpenItemId(item.id);
-              resetItemModalDefaults(item);
-            }}
-          />
-
-          {/* Desktop cart sidebar */}
-          <aside className="hidden md:block">
-            <div className="sticky top-[140px] h-[calc(100vh-170px)] rounded-2xl border bg-card p-4">
-              <CartPanel
-                cart={cart}
-                cartCount={cartCount}
-                cartTotal={cartTotal}
-                onInc={incLine}
-                onDec={decLine}
-                onRemove={removeLine}
-              />
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+              <Link
+                href="/order"
+                className="rounded-full bg-white px-8 py-3 text-sm font-bold text-[#07040b] shadow-lg hover:bg-white/90 transition"
+              >
+                Order Now
+              </Link>
+              <Link
+                href="/#story"
+                className="rounded-full border border-white/20 bg-white/[0.06] backdrop-blur px-8 py-3 text-sm font-bold text-white/85 hover:bg-white/[0.10] transition"
+              >
+                Our Story
+              </Link>
             </div>
-          </aside>
-        </div>
+          </div>
+        </section>
+
+        {/* Features / highlights */}
+        <section className="mx-auto max-w-5xl px-6 pb-24">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              {
+                emoji: "🧋",
+                title: "Premium Boba",
+                desc: "Milk teas, specials & milkshakes crafted with real ingredients.",
+              },
+              {
+                emoji: "🧊",
+                title: "Refreshing Iced Tea",
+                desc: "Fruity, fizzy & spiced — served ice cold, always fresh.",
+              },
+              {
+                emoji: "🌯",
+                title: "Loaded Shawarma",
+                desc: "Chicken, beef or mixed — wrapped with fresh veg & sauce.",
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-6 text-center space-y-3"
+              >
+                <span className="text-4xl">{f.emoji}</span>
+                <h3 className="text-lg font-semibold">{f.title}</h3>
+                <p className="text-sm text-white/60">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Hours */}
+        <section className="mx-auto max-w-2xl px-6 pb-24 text-center space-y-4">
+          <h2 className="text-2xl font-bold">Opening Hours</h2>
+          <div className="inline-flex flex-col gap-2 text-white/70 text-sm">
+            <p>Tuesday – Saturday: 2pm – 9:30pm</p>
+            <p>Sunday: 3pm – 9pm</p>
+            <p>Monday: Closed</p>
+          </div>
+          <p className="text-xs text-white/40">
+            📍 Abura Taxi Station &bull; 📞 0536440126
+          </p>
+        </section>
       </main>
-
-      {/* Floating cart button for mobile/tablet – opens Dialog modal */}
-      <FloatingCartButton
-        cart={cart}
-        cartCount={cartCount}
-        cartTotal={cartTotal}
-        onInc={incLine}
-        onDec={decLine}
-        onRemove={removeLine}
-      />
-
-      {/* Item customisation modal */}
-      <ItemModal
-        item={openItem ?? null}
-        open={openItemId !== null}
-        onOpenChange={(open) => {
-          if (!open) setOpenItemId(null);
-        }}
-        selectedOptionKey={selectedOptionKey}
-        onOptionChange={setSelectedOptionKey}
-        freeToppingId={freeToppingId}
-        onFreeToppingChange={setFreeToppingId}
-        selectedToppings={selectedToppings}
-        onToppingsChange={setSelectedToppings}
-        note={itemNote}
-        onNoteChange={setItemNote}
-        onAddToCart={() => {
-          if (openItem) {
-            addLineToCart(
-              openItem,
-              selectedOptionKey,
-              freeToppingId,
-              selectedToppings,
-              itemNote,
-            );
-            setOpenItemId(null);
-          }
-        }}
-      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-type ItemModalProps = {
+type ItemSheetProps = {
   item: MenuItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,7 +34,7 @@ type ItemModalProps = {
   onAddToCart: () => void;
 };
 
-export default function ItemModal({
+export default function ItemSheet({
   item,
   open,
   onOpenChange,
@@ -46,7 +47,7 @@ export default function ItemModal({
   note,
   onNoteChange,
   onAddToCart,
-}: ItemModalProps) {
+}: ItemSheetProps) {
   function togglePaidTopping(id: string) {
     onToppingsChange(
       selectedToppings.includes(id)
@@ -168,6 +169,20 @@ export default function ItemModal({
 
               {item ? (
                 <>
+                  {/* Product image banner */}
+                  {item.image && (
+                    <div className="relative w-full h-48 -mt-4 -mx-4 mb-4" style={{ width: 'calc(100% + 2rem)' }}>
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        sizes="(max-width: 640px) 100vw, 560px"
+                        className="object-cover rounded-t-2xl"
+                        priority
+                      />
+                    </div>
+                  )}
+
                   <SheetHeader className="pr-12">
                     <SheetTitle>{item.name}</SheetTitle>
                     <SheetDescription>{item.description}</SheetDescription>
