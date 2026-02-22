@@ -15,6 +15,7 @@ import {
   type CartLine,
   type MenuItem,
   menu,
+  categories,
   toppings,
   isDrink,
   isShawarma,
@@ -50,16 +51,15 @@ export default function Home() {
   const [itemNote, setItemNote] = React.useState<string>("");
 
   // ── Derived values ───────────────────────
-  const activeItems = React.useMemo(() => {
-    const base = menu.filter((m) => m.category === activeCategory);
+  const filteredItems = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter(
+    if (!q) return menu;
+    return menu.filter(
       (m) =>
         m.name.toLowerCase().includes(q) ||
         m.description.toLowerCase().includes(q),
     );
-  }, [activeCategory, query]);
+  }, [query]);
 
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
 
@@ -173,6 +173,43 @@ export default function Home() {
   // ── Nav menu state ─────────────────────────
   const [navOpen, setNavOpen] = React.useState(false);
 
+  // ── Scroll-spy: update active category as user scrolls ──
+  const isManualScroll = React.useRef(false);
+
+  React.useEffect(() => {
+    const sectionIds = categories.map((c) => c.key);
+    const els = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+    if (els.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isManualScroll.current) return;
+        // Find the most visible section
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length > 0) {
+          setActiveCategory(visible[0].target.id as CategoryKey);
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: [0, 0.25, 0.5] },
+    );
+
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [filteredItems]);
+
+  function handleCategoryChange(key: CategoryKey) {
+    isManualScroll.current = true;
+    setActiveCategory(key);
+    // Let the scroll settle, then re-enable scroll-spy
+    setTimeout(() => {
+      isManualScroll.current = false;
+    }, 800);
+  }
+
   // ── Render ───────────────────────────────
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -235,7 +272,7 @@ export default function Home() {
         {/* Category chips + search */}
         <CategoryNav
           activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
+          onCategoryChange={handleCategoryChange}
           query={query}
           onQueryChange={setQuery}
         />
@@ -246,8 +283,8 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6">
           {/* Menu grid */}
           <MenuGrid
-            activeCategory={activeCategory}
-            items={activeItems}
+            items={filteredItems}
+            query={query}
             onItemClick={(item) => {
               setOpenItemId(item.id);
               resetItemModalDefaults(item);
