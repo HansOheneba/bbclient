@@ -45,7 +45,6 @@ export default function MenuGrid({ items, query, onItemClick }: MenuGridProps) {
       {grouped.map((group) => (
         <section key={group.key} id={group.key} className="scroll-mt-44">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <span>{group.emoji}</span>
             <span>{group.label}</span>
           </h2>
           <p className="text-sm text-muted-foreground mt-1 mb-4">

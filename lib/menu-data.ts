@@ -49,13 +49,12 @@ export type CartLine = {
 export const categories: Array<{
   key: CategoryKey;
   label: string;
-  emoji: string;
 }> = [
-  { key: "milk-tea", label: "Milk Tea", emoji: "🧋" },
-  { key: "hq-special", label: "HQ Special", emoji: "⭐" },
-  { key: "iced-tea", label: "Iced Tea", emoji: "🧊" },
-  { key: "milkshakes", label: "Milkshakes", emoji: "🥤" },
-  { key: "shawarma", label: "Shawarma", emoji: "🌯" },
+  { key: "milk-tea", label: "Milk Tea",  },
+  { key: "hq-special", label: "HQ Special", },
+  { key: "iced-tea", label: "Iced Tea",  },
+  { key: "milkshakes", label: "Milkshakes", },
+  { key: "shawarma", label: "Shawarma",},
 ];
 
 // ── Toppings ─────────────────────────────────

@@ -9,7 +9,8 @@ import MenuGrid from "@/components/menu/menu-grid";
 import CartPanel from "@/components/menu/cart-panel";
 import ItemSheet from "@/components/menu/item-sheet";
 import FloatingCartButton from "@/components/menu/floating-cart-button";
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSun, faCloudSun, faMoon } from "@fortawesome/free-solid-svg-icons";
 import {
   type CategoryKey,
   type CartLine,
@@ -162,13 +163,28 @@ export default function Home() {
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
   }
 
-  // ── Time-based greeting ───────────────────
-  const greeting = React.useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning ☀️";
-    if (hour < 17) return "Good afternoon 🌤️";
-    return "Good evening 🌙";
-  }, []);
+const greeting = React.useMemo(() => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return {
+      text: "Good morning",
+      icon: faSun,
+    };
+  }
+
+  if (hour < 17) {
+    return {
+      text: "Good afternoon",
+      icon: faCloudSun,
+    };
+  }
+
+  return {
+    text: "Good evening",
+    icon: faMoon,
+  };
+}, []);
 
   // ── Nav menu state ─────────────────────────
   const [navOpen, setNavOpen] = React.useState(false);
@@ -217,7 +233,13 @@ export default function Home() {
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <div className="leading-tight">
-            <p className="font-semibold">{greeting}</p>
+            <p className="font-semibold flex items-center gap-2">
+              <FontAwesomeIcon
+                icon={greeting.icon}
+                className="text-[#fffff]"
+              />
+              {greeting.text}
+            </p>
             <p className="text-xs text-muted-foreground">
               What are we getting today?
             </p>
