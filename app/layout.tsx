@@ -47,6 +47,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <GlassHeader />
+        <div className="h-10"></div>
         {children}
         <Footer />
       </body>

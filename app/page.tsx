@@ -1,350 +1,250 @@
 "use client";
 
-import { useState } from "react";
-import { products, getProductsByCategory, type Product } from "@/lib/products";
+import * as React from "react";
+import Image from "next/image";
+
+import CategoryNav from "@/components/menu/category-nav";
+import MenuGrid from "@/components/menu/menu-grid";
+import CartPanel from "@/components/menu/cart-panel";
+import ItemModal from "@/components/menu/item-modal";
+import FloatingCartButton from "@/components/menu/floating-cart-button";
+
+import {
+  type CategoryKey,
+  type CartLine,
+  type MenuItem,
+  menu,
+  toppings,
+} from "@/lib/menu-data";
+
+function calcToppingExtras(
+  toppingIds: string[],
+  freeToppingId: string | null,
+): number {
+  return toppingIds.reduce((sum, id) => {
+    const t = toppings.find((tp) => tp.id === id);
+    return sum + (t?.priceGhs ?? 0);
+  }, 0);
+}
 
 export default function Home() {
-  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>(
-    [],
-  );
-  const [activeCategory, setActiveCategory] = useState<
-    "boba" | "iced-tea" | "shawarma"
-  >("boba");
-  const [showCart, setShowCart] = useState(false);
+  // ── Category & search state ──────────────
+  const [activeCategory, setActiveCategory] =
+    React.useState<CategoryKey>("milk-tea");
+  const [query, setQuery] = React.useState<string>("");
 
-  const addToCart = (product: Product) => {
+  // ── Cart state ───────────────────────────
+  const [cart, setCart] = React.useState<CartLine[]>([]);
+
+  // ── Item modal state ─────────────────────
+  const [openItemId, setOpenItemId] = React.useState<string | null>(null);
+  const [selectedOptionKey, setSelectedOptionKey] =
+    React.useState<string>("default");
+  const [freeToppingId, setFreeToppingId] = React.useState<string | null>(null);
+  const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
+  const [itemNote, setItemNote] = React.useState<string>("");
+
+  // ── Derived values ───────────────────────
+  const activeItems = React.useMemo(() => {
+    const base = menu.filter((m) => m.category === activeCategory);
+    const q = query.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.description.toLowerCase().includes(q),
+    );
+  }, [activeCategory, query]);
+
+  const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
+
+  const cartTotal = cart.reduce((sum, l) => {
+    const toppingExtra = calcToppingExtras(l.toppingIds, l.freeToppingId);
+    return sum + (l.unitPriceGhs + toppingExtra) * l.quantity;
+  }, 0);
+
+  const openItem = openItemId ? menu.find((m) => m.id === openItemId) : null;
+
+  // ── Helpers ──────────────────────────────
+  function resetItemModalDefaults(item: MenuItem) {
+    const first = item.options[0];
+    setSelectedOptionKey(first ? first.key : "default");
+    setFreeToppingId(null);
+    setSelectedToppings([]);
+    setItemNote("");
+  }
+
+  function addLineToCart(
+    item: MenuItem,
+    optionKey: string,
+    freeTopping: string | null,
+    toppingIds: string[],
+    note: string,
+  ) {
+    const option =
+      item.options.find((o) => o.key === optionKey) ?? item.options[0];
+    if (!option) return;
+
+    const trimmedNote = note.trim();
+    const signature = `${item.id}|${option.key}|${freeTopping ?? ""}|${toppingIds.slice().sort().join(",")}|${trimmedNote}`;
+
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find(
+        (l) =>
+          `${l.itemId}|${l.optionKey}|${l.freeToppingId ?? ""}|${l.toppingIds
+            .slice()
+            .sort()
+            .join(",")}|${l.note}` === signature,
+      );
+
       if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
+        return prev.map((l) =>
+          l.lineId === existing.lineId ? { ...l, quantity: l.quantity + 1 } : l,
         );
       }
-      return [...prev, { product, quantity: 1 }];
+
+      const line: CartLine = {
+        lineId: crypto.randomUUID(),
+        itemId: item.id,
+        itemName: item.name,
+        optionKey: option.key,
+        optionLabel: option.label,
+        unitPriceGhs: option.priceGhs,
+        quantity: 1,
+        freeToppingId: freeTopping,
+        toppingIds,
+        note: trimmedNote,
+      };
+
+      return [line, ...prev];
     });
-  };
+  }
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
-  };
+  function decLine(lineId: string) {
+    setCart((prev) =>
+      prev
+        .map((l) =>
+          l.lineId === lineId ? { ...l, quantity: l.quantity - 1 } : l,
+        )
+        .filter((l) => l.quantity > 0),
+    );
+  }
 
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-    } else {
-      setCart((prev) =>
-        prev.map((item) =>
-          item.product.id === productId ? { ...item, quantity } : item,
-        ),
-      );
-    }
-  };
+  function incLine(lineId: string) {
+    setCart((prev) =>
+      prev.map((l) =>
+        l.lineId === lineId ? { ...l, quantity: l.quantity + 1 } : l,
+      ),
+    );
+  }
 
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0,
-  );
-  const filteredProducts = getProductsByCategory(activeCategory);
+  function removeLine(lineId: string) {
+    setCart((prev) => prev.filter((l) => l.lineId !== lineId));
+  }
 
+  // ── Render ───────────────────────────────
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        backgroundColor: "var(--background)",
-        color: "var(--foreground)",
-      }}
-    >
-  
-
-      <div className="flex">
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Hero Section */}
-          <section
-            className="py-20 px-4 text-center"
-            style={{
-              background: `linear-gradient(135deg, var(--primary), var(--secondary))`,
-            }}
-          >
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-5xl font-bold text-white mb-4">
-                Welcome to Bubble Bliss Cafe
-              </h2>
-              <p className="text-xl text-white/90 mb-8">
-                ✨ Bubble Tea Paradise • 🥶 Refreshing Iced Tea • 🌯 Authentic
-                Shawarma
-              </p>
-              <p className="text-white/80">
-                Crafted with passion, served with joy. Experience pure bliss in
-                every sip and bite.
-              </p>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <div className="relative h-10 w-10 overflow-hidden rounded-xl border bg-card">
+              <Image
+                src="/bbl-white.png"
+                alt="Bubble Bliss"
+                fill
+                className="object-contain p-1"
+                priority
+              />
             </div>
-          </section>
-
-          {/* Category Tabs */}
-          <div className="flex justify-center gap-4 py-12 px-4 flex-wrap">
-            {(["boba", "iced-tea", "shawarma"] as const).map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`px-6 py-3 rounded-full font-semibold transition ${
-                  activeCategory === category
-                    ? "text-white"
-                    : "hover:opacity-80"
-                }`}
-                style={{
-                  backgroundColor:
-                    activeCategory === category
-                      ? "var(--primary)"
-                      : "var(--card)",
-                  color:
-                    activeCategory === category ? "white" : "var(--foreground)",
-                  borderColor: "var(--border)",
-                  border: activeCategory === category ? "none" : "1px solid",
-                }}
-              >
-                {category === "boba" && "🧋 Boba Tea"}
-                {category === "iced-tea" && "🥶 Iced Tea"}
-                {category === "shawarma" && "🌯 Shawarma"}
-              </button>
-            ))}
-          </div>
-
-          {/* Products Grid */}
-          <div className="max-w-7xl mx-auto px-4 pb-12">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="rounded-lg shadow-lg overflow-hidden hover:shadow-2xl transition border-t-4"
-                  style={{
-                    backgroundColor: "var(--card)",
-                    borderTopColor: "var(--accent)",
-                    borderColor: "var(--border)",
-                  }}
-                >
-                  <div
-                    className="w-full h-48 bg-linear-to-br"
-                    style={{
-                      backgroundImage: `url(${product.image})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  ></div>
-                  <div className="p-4">
-                    <h3
-                      className="font-bold text-lg mb-2"
-                      style={{ color: "var(--white)" }}
-                    >
-                      {product.name}
-                    </h3>
-                    <p
-                      style={{ color: "var(--muted-foreground)" }}
-                      className="text-sm mb-4"
-                    >
-                      {product.description}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span
-                        className="text-2xl font-bold"
-                        style={{ color: "var(--accent)" }}
-                      >
-                        ${product.price.toFixed(2)}
-                      </span>
-                      <button
-                        onClick={() => addToCart(product)}
-                        className="px-4 py-2 rounded-lg text-white font-semibold transition hover:opacity-90"
-                        style={{ backgroundColor: "var(--accent)" }}
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="leading-tight">
+              <p className="font-semibold">Bubble Bliss Cafe</p>
+              <p className="text-xs text-muted-foreground">
+                Abura Taxi Station
+              </p>
             </div>
           </div>
 
-          {/* Info Section */}
-          <section
-            className="py-12 px-4"
-            style={{ backgroundColor: "var(--card)" }}
-          >
-            <div className="max-w-4xl mx-auto">
-              <h2
-                className="text-3xl font-bold text-center mb-8"
-                style={{ color: "var(--white)" }}
-              >
-                Why Choose Us?
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div
-                  className="text-center p-4 rounded-lg"
-                  style={{ backgroundColor: "var(--background)" }}
-                >
-                  <div className="text-4xl mb-4">✨</div>
-                  <h3
-                    className="font-bold mb-2"
-                    style={{ color: "var(--white)" }}
-                  >
-                    Premium Quality
-                  </h3>
-                  <p style={{ color: "var(--muted-foreground)" }}>
-                    Fresh ingredients and authentic recipes
-                  </p>
-                </div>
-                <div
-                  className="text-center p-4 rounded-lg"
-                  style={{ backgroundColor: "var(--background)" }}
-                >
-                  <div className="text-4xl mb-4">⚡</div>
-                  <h3
-                    className="font-bold mb-2"
-                    style={{ color: "var(--white)" }}
-                  >
-                    Quick Service
-                  </h3>
-                  <p style={{ color: "var(--muted-foreground)" }}>
-                    Fast preparation and delivery
-                  </p>
-                </div>
-                <div
-                  className="text-center p-4 rounded-lg"
-                  style={{ backgroundColor: "var(--background)" }}
-                >
-                  <div className="text-4xl mb-4">😋</div>
-                  <h3
-                    className="font-bold mb-2"
-                    style={{ color: "var(--white)" }}
-                  >
-                    Amazing Taste
-                  </h3>
-                  <p style={{ color: "var(--muted-foreground)" }}>
-                    Flavors crafted to perfection
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
+          <div className="flex-1" />
         </div>
 
-        {/* Cart Sidebar */}
-        {showCart && (
-          <div
-            className="w-80 shadow-xl p-6 border-l"
-            style={{
-              backgroundColor: "var(--card)",
-              borderColor: "var(--border)",
+        {/* Category chips + search */}
+        <CategoryNav
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+          query={query}
+          onQueryChange={setQuery}
+        />
+      </header>
+
+      {/* Content */}
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6">
+          {/* Menu grid */}
+          <MenuGrid
+            activeCategory={activeCategory}
+            items={activeItems}
+            onItemClick={(item) => {
+              setOpenItemId(item.id);
+              resetItemModalDefaults(item);
             }}
-          >
-            <h2
-              className="text-2xl font-bold mb-6"
-              style={{ color: "var(--white)" }}
-            >
-              Shopping Cart
-            </h2>
-            {cart.length === 0 ? (
-              <p
-                style={{ color: "var(--muted-foreground)" }}
-                className="text-center py-8"
-              >
-                Your cart is empty
-              </p>
-            ) : (
-              <>
-                <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
-                  {cart.map((item) => (
-                    <div
-                      key={item.product.id}
-                      className="p-3 rounded-lg"
-                      style={{ backgroundColor: "var(--background)" }}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3
-                          className="font-semibold text-sm"
-                          style={{ color: "var(--white)" }}
-                        >
-                          {item.product.name}
-                        </h3>
-                        <button
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="text-red-500 text-sm hover:text-red-400"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.product.id, item.quantity - 1)
-                            }
-                            className="rounded hover:opacity-80 transition w-6 h-6"
-                            style={{
-                              backgroundColor: "var(--primary)",
-                              color: "var(--white)",
-                            }}
-                          >
-                            -
-                          </button>
-                          <span style={{ color: "var(--foreground)" }}>
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.product.id, item.quantity + 1)
-                            }
-                            className="rounded hover:opacity-80 transition w-6 h-6"
-                            style={{
-                              backgroundColor: "var(--primary)",
-                              color: "var(--white)",
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <span
-                          className="font-bold"
-                          style={{ color: "var(--accent)" }}
-                        >
-                          ${(item.product.price * item.quantity).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  className="pt-4"
-                  style={{ borderTop: "1px solid var(--border)" }}
-                >
-                  <div className="flex justify-between mb-4">
-                    <span
-                      className="font-bold text-lg"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      Total:
-                    </span>
-                    <span
-                      className="font-bold text-2xl"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      ${cartTotal.toFixed(2)}
-                    </span>
-                  </div>
-                  <button
-                    className="w-full py-3 rounded-lg text-white font-bold transition hover:opacity-90"
-                    style={{ backgroundColor: "var(--primary)" }}
-                  >
-                    Checkout
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+          />
+
+          {/* Desktop cart sidebar */}
+          <aside className="hidden md:block">
+            <div className="sticky top-[140px] h-[calc(100vh-170px)] rounded-2xl border bg-card p-4">
+              <CartPanel
+                cart={cart}
+                cartCount={cartCount}
+                cartTotal={cartTotal}
+                onInc={incLine}
+                onDec={decLine}
+                onRemove={removeLine}
+              />
+            </div>
+          </aside>
+        </div>
+      </main>
+
+      {/* Floating cart button for mobile/tablet – opens Dialog modal */}
+      <FloatingCartButton
+        cart={cart}
+        cartCount={cartCount}
+        cartTotal={cartTotal}
+        onInc={incLine}
+        onDec={decLine}
+        onRemove={removeLine}
+      />
+
+      {/* Item customisation modal */}
+      <ItemModal
+        item={openItem ?? null}
+        open={openItemId !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenItemId(null);
+        }}
+        selectedOptionKey={selectedOptionKey}
+        onOptionChange={setSelectedOptionKey}
+        freeToppingId={freeToppingId}
+        onFreeToppingChange={setFreeToppingId}
+        selectedToppings={selectedToppings}
+        onToppingsChange={setSelectedToppings}
+        note={itemNote}
+        onNoteChange={setItemNote}
+        onAddToCart={() => {
+          if (openItem) {
+            addLineToCart(
+              openItem,
+              selectedOptionKey,
+              freeToppingId,
+              selectedToppings,
+              itemNote,
+            );
+            setOpenItemId(null);
+          }
+        }}
+      />
     </div>
   );
 }

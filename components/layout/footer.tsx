@@ -250,7 +250,7 @@ export default function Footer({
           </div>
 
           <div className="text-xs text-white/45">
-            Crafted with <span className="text-white/70">love</span> in Accra.
+            Crafted with <span className="text-white/70">love</span>.
           </div>
         </div>
       </div>
