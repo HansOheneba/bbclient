@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 
 import CategoryNav from "@/components/menu/category-nav";
 import MenuGrid from "@/components/menu/menu-grid";
@@ -142,28 +141,25 @@ export default function Home() {
     setCart((prev) => prev.filter((l) => l.lineId !== lineId));
   }
 
+  // ── Time-based greeting ───────────────────
+  const greeting = React.useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning ☀️";
+    if (hour < 17) return "Good afternoon 🌤️";
+    return "Good evening 🌙";
+  }, []);
+
   // ── Render ───────────────────────────────
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-xl border bg-card">
-              <Image
-                src="/bbl-white.png"
-                alt="Bubble Bliss"
-                fill
-                className="object-contain p-1"
-                priority
-              />
-            </div>
-            <div className="leading-tight">
-              <p className="font-semibold">Bubble Bliss Cafe</p>
-              <p className="text-xs text-muted-foreground">
-                Abura Taxi Station
-              </p>
-            </div>
+          <div className="leading-tight">
+            <p className="font-semibold">{greeting}</p>
+            <p className="text-xs text-muted-foreground">
+              What are we getting today?
+            </p>
           </div>
 
           <div className="flex-1" />

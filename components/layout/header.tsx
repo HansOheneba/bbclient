@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   GlassPopover,
   GlassPopoverTrigger,
@@ -19,16 +20,91 @@ type HeaderProps = {
   logoSrc?: string; // from /public
   leftLabel?: string;
   rightLabel?: string;
-
-  // Optional: if you want dropdown/extra links later
   navItems?: NavItem[];
-
-  // Optional: active state (if you want)
   activeHref?: string;
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(!!mq.matches);
+
+    onChange();
+
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }
+
+    mq.addListener(onChange);
+    return () => mq.removeListener(onChange);
+  }, []);
+
+  return reduced;
+}
+
+/**
+ * Hides header when scrolling down, shows when scrolling up.
+ * Has a small threshold so it doesn't flicker on tiny scroll moves.
+ */
+function useHideOnScroll(opts?: {
+  threshold?: number;
+  topAlwaysVisible?: number;
+}) {
+  const threshold = opts?.threshold ?? 10;
+  const topAlwaysVisible = opts?.topAlwaysVisible ?? 40;
+
+  const [hidden, setHidden] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let lastY = window.scrollY;
+    let ticking = false;
+
+    const onScroll = () => {
+      if (ticking) return;
+
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY;
+
+        // Always show near the top
+        if (y <= topAlwaysVisible) {
+          setHidden(false);
+          lastY = y;
+          ticking = false;
+          return;
+        }
+
+        if (Math.abs(delta) < threshold) {
+          ticking = false;
+          return;
+        }
+
+        // Down scroll -> hide. Up scroll -> show.
+        if (delta > 0) setHidden(true);
+        else setHidden(false);
+
+        lastY = y;
+        ticking = false;
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold, topAlwaysVisible]);
+
+  return hidden;
 }
 
 export default function GlassHeader({
@@ -46,8 +122,37 @@ export default function GlassHeader({
 }: HeaderProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
 
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const hidden = useHideOnScroll({ threshold: 10, topAlwaysVisible: 40 });
+
   return (
-    <header className="sticky top-4 z-50 px-4">
+    <motion.header
+      className="sticky top-4 z-50 px-4"
+      initial={{ opacity: 0, y: -10, scale: 0.98, filter: "blur(6px)" }}
+      animate={
+        hidden
+          ? {
+              opacity: 0,
+              scale: 0.72,
+              y: -4,
+              filter: "blur(8px)",
+              pointerEvents: "none" as const,
+              transition: prefersReducedMotion
+                ? { duration: 0 }
+                : { duration: 0.16, ease: [0.4, 0, 1, 1] },
+            }
+          : {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              filter: "blur(0px)",
+              pointerEvents: "auto" as const,
+              transition: prefersReducedMotion
+                ? { duration: 0 }
+                : { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+            }
+      }
+    >
       {/* Outer glass bar */}
       <div className="mx-auto max-w-7xl">
         <div
@@ -98,7 +203,6 @@ export default function GlassHeader({
                 />
               </span>
 
-              {/* Optional small divider + wordmark on larger screens */}
               <span
                 className="hidden md:inline-block h-6 w-px"
                 style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
@@ -144,6 +248,7 @@ export default function GlassHeader({
                     MORE
                   </button>
                 </GlassPopoverTrigger>
+
                 <GlassPopoverContent className="w-56">
                   <nav className="grid gap-2">
                     {navItems.map((item) => {
@@ -175,6 +280,6 @@ export default function GlassHeader({
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
