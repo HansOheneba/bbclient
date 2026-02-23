@@ -44,7 +44,7 @@ type ItemSheetProps = {
   onSpiceLevelChange: (level: number) => void;
   note: string;
   onNoteChange: (note: string) => void;
-  onAddToCart: () => void;
+  onAddToCart: (quantity: number) => void;
 };
 
 export default function ItemSheet({
@@ -65,6 +65,13 @@ export default function ItemSheet({
   onNoteChange,
   onAddToCart,
 }: ItemSheetProps) {
+  const [quantity, setQuantity] = React.useState(1);
+
+  // Reset quantity when sheet opens with a new item
+  React.useEffect(() => {
+    if (open) setQuantity(1);
+  }, [open, item?.id]);
+
   function togglePaidTopping(id: string) {
     onToppingsChange(
       selectedToppings.includes(id)
@@ -91,6 +98,7 @@ export default function ItemSheet({
     paidToppingNames: string[];
     sugarPct?: string | null;
     spiciness?: string | null;
+    isShawarmaItem?: boolean;
   }) {
     const {
       itemName,
@@ -99,6 +107,7 @@ export default function ItemSheet({
       paidToppingNames,
       sugarPct,
       spiciness,
+      isShawarmaItem,
     } = args;
 
     const base = optionLabel ? `${itemName} (${optionLabel})` : itemName;
@@ -120,15 +129,16 @@ export default function ItemSheet({
     const suffix = `${sugarSuffix}${spiceSuffix}`;
 
     if (!freeToppingName && paidToppingNames.length === 0) {
-      return `I am ordering ${base}${suffix}.`;
+      const noToppings = !isShawarmaItem ? " with no toppings" : "";
+      return `I want ${base}${noToppings}${suffix}.`;
     }
     if (freeToppingName && paidToppingNames.length === 0) {
-      return `I am ordering ${base} with ${freeToppingName}${suffix}.`;
+      return `I want ${base} with ${freeToppingName}${suffix}.`;
     }
     if (freeToppingName && paidToppingNames.length > 0) {
-      return `I am ordering ${base} with ${freeToppingName} plus ${paidPretty}${suffix}.`;
+      return `I want ${base} with ${freeToppingName} plus ${paidPretty}${suffix}.`;
     }
-    return `I am ordering ${base} with ${paidPretty}${suffix}.`;
+    return `I want ${base} with ${paidPretty}${suffix}.`;
   }
 
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -447,6 +457,7 @@ export default function ItemSheet({
                             paidToppingNames: itemIsShawarma ? [] : paidNames,
                             sugarPct: itemIsDrink ? sugarLabel : null,
                             spiciness: itemIsShawarma ? spiceLabel : null,
+                            isShawarmaItem: itemIsShawarma,
                           });
 
                           return (
@@ -456,9 +467,48 @@ export default function ItemSheet({
                           );
                         })()}
                       </div>
+                    </div>
 
-                      <Button type="button" onClick={onAddToCart}>
-                        Add to cart
+                    {/* Quantity + Add to cart */}
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                          disabled={quantity <= 1}
+                          className={cn(
+                            "inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-medium transition",
+                            "focus:outline-none focus:ring-2 focus:ring-ring",
+                            quantity <= 1
+                              ? "opacity-40 cursor-not-allowed"
+                              : "hover:bg-accent/20",
+                          )}
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                          {quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuantity((q) => Math.min(20, q + 1))
+                          }
+                          className={cn(
+                            "inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-medium transition",
+                            "focus:outline-none focus:ring-2 focus:ring-ring",
+                            "hover:bg-accent/20",
+                          )}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={() => onAddToCart(quantity)}
+                      >
+                        Add {quantity > 1 ? `${quantity} ` : ""}to cart
                       </Button>
                     </div>
                   </div>

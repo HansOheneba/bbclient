@@ -3,6 +3,7 @@
     "npx next": true,
     "mkdir": true,
     "mv": true,
-    "npx shadcn@latest": true
+    "npx shadcn@latest": true,
+    "npm install": true
   }
 }

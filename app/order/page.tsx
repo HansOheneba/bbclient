@@ -13,24 +13,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun, faCloudSun, faMoon } from "@fortawesome/free-solid-svg-icons";
 import {
   type CategoryKey,
-  type CartLine,
   type MenuItem,
   menu,
   categories,
-  toppings,
-  isDrink,
-  isShawarma,
 } from "@/lib/menu-data";
-
-function calcToppingExtras(
-  toppingIds: string[],
-  freeToppingId: string | null,
-): number {
-  return toppingIds.reduce((sum, id) => {
-    const t = toppings.find((tp) => tp.id === id);
-    return sum + (t?.priceGhs ?? 0);
-  }, 0);
-}
+import { useCartStore } from "@/lib/store";
 
 export default function Home() {
   // ── Category & search state ──────────────
@@ -38,8 +25,14 @@ export default function Home() {
     React.useState<CategoryKey>("milk-tea");
   const [query, setQuery] = React.useState<string>("");
 
-  // ── Cart state ───────────────────────────
-  const [cart, setCart] = React.useState<CartLine[]>([]);
+  // ── Cart state (Zustand) ─────────────────
+  const cart = useCartStore((s) => s.cart);
+  const cartCount = useCartStore((s) => s.cartCount)();
+  const cartTotal = useCartStore((s) => s.cartTotal)();
+  const addLine = useCartStore((s) => s.addLine);
+  const incLine = useCartStore((s) => s.incLine);
+  const decLine = useCartStore((s) => s.decLine);
+  const removeLine = useCartStore((s) => s.removeLine);
 
   // ── Item modal state ─────────────────────
   const [openItemId, setOpenItemId] = React.useState<string | null>(null);
@@ -62,13 +55,6 @@ export default function Home() {
     );
   }, [query]);
 
-  const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
-
-  const cartTotal = cart.reduce((sum, l) => {
-    const toppingExtra = calcToppingExtras(l.toppingIds, l.freeToppingId);
-    return sum + (l.unitPriceGhs + toppingExtra) * l.quantity;
-  }, 0);
-
   const openItem = openItemId ? menu.find((m) => m.id === openItemId) : null;
 
   // ── Helpers ──────────────────────────────
@@ -82,109 +68,28 @@ export default function Home() {
     setItemNote("");
   }
 
-  function addLineToCart(
-    item: MenuItem,
-    optionKey: string,
-    freeTopping: string | null,
-    toppingIds: string[],
-    sugar: number,
-    spice: number,
-    note: string,
-  ) {
-    const option =
-      item.options.find((o) => o.key === optionKey) ?? item.options[0];
-    if (!option) return;
+  const greeting = React.useMemo(() => {
+    const hour = new Date().getHours();
 
-    const shawarma = isShawarma(item);
-    const trimmedNote = note.trim();
-    const sugarVal = isDrink(item) ? sugar : null;
-    const spiceVal = shawarma ? spice : null;
-    // For shawarma, toppings are not applicable
-    const finalFreeTopping = shawarma ? null : freeTopping;
-    const finalToppingIds = shawarma ? [] : toppingIds;
-    const signature = `${item.id}|${option.key}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}|${trimmedNote}`;
-
-    setCart((prev) => {
-      const existing = prev.find(
-        (l) =>
-          `${l.itemId}|${l.optionKey}|${l.freeToppingId ?? ""}|${l.toppingIds
-            .slice()
-            .sort()
-            .join(
-              ",",
-            )}|${l.sugarLevel ?? ""}|${l.spiceLevel ?? ""}|${l.note}` ===
-          signature,
-      );
-
-      if (existing) {
-        return prev.map((l) =>
-          l.lineId === existing.lineId ? { ...l, quantity: l.quantity + 1 } : l,
-        );
-      }
-
-      const line: CartLine = {
-        lineId: crypto.randomUUID(),
-        itemId: item.id,
-        itemName: item.name,
-        optionKey: option.key,
-        optionLabel: option.label,
-        unitPriceGhs: option.priceGhs,
-        quantity: 1,
-        freeToppingId: finalFreeTopping,
-        toppingIds: finalToppingIds,
-        sugarLevel: sugarVal,
-        spiceLevel: spiceVal,
-        note: trimmedNote,
+    if (hour < 12) {
+      return {
+        text: "Good morning",
+        icon: faSun,
       };
+    }
 
-      return [line, ...prev];
-    });
-  }
+    if (hour < 17) {
+      return {
+        text: "Good afternoon",
+        icon: faCloudSun,
+      };
+    }
 
-  function decLine(lineId: string) {
-    setCart((prev) =>
-      prev
-        .map((l) =>
-          l.lineId === lineId ? { ...l, quantity: l.quantity - 1 } : l,
-        )
-        .filter((l) => l.quantity > 0),
-    );
-  }
-
-  function incLine(lineId: string) {
-    setCart((prev) =>
-      prev.map((l) =>
-        l.lineId === lineId ? { ...l, quantity: l.quantity + 1 } : l,
-      ),
-    );
-  }
-
-  function removeLine(lineId: string) {
-    setCart((prev) => prev.filter((l) => l.lineId !== lineId));
-  }
-
-const greeting = React.useMemo(() => {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
     return {
-      text: "Good morning",
-      icon: faSun,
+      text: "Good evening",
+      icon: faMoon,
     };
-  }
-
-  if (hour < 17) {
-    return {
-      text: "Good afternoon",
-      icon: faCloudSun,
-    };
-  }
-
-  return {
-    text: "Good evening",
-    icon: faMoon,
-  };
-}, []);
+  }, []);
 
   // ── Nav menu state ─────────────────────────
   const [navOpen, setNavOpen] = React.useState(false);
@@ -234,10 +139,7 @@ const greeting = React.useMemo(() => {
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <div className="leading-tight">
             <p className="font-semibold flex items-center gap-2">
-              <FontAwesomeIcon
-                icon={greeting.icon}
-                className="text-[#fffff]"
-              />
+              <FontAwesomeIcon icon={greeting.icon} className="text-[#fffff]" />
               {greeting.text}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -358,9 +260,9 @@ const greeting = React.useMemo(() => {
         onSpiceLevelChange={setSpiceLevel}
         note={itemNote}
         onNoteChange={setItemNote}
-        onAddToCart={() => {
+        onAddToCart={(quantity) => {
           if (openItem) {
-            addLineToCart(
+            addLine(
               openItem,
               selectedOptionKey,
               freeToppingId,
@@ -368,6 +270,7 @@ const greeting = React.useMemo(() => {
               sugarLevel,
               spiceLevel,
               itemNote,
+              quantity,
             );
             setOpenItemId(null);
           }

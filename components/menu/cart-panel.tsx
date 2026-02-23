@@ -1,6 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Plus, Minus, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFire, faCube } from "@fortawesome/free-solid-svg-icons";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +32,8 @@ export default function CartPanel({
   onDec,
   onRemove,
 }: CartPanelProps) {
+  const router = useRouter();
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between">
@@ -54,6 +60,7 @@ export default function CartPanel({
             const freeTopping = l.freeToppingId
               ? toppings.find((t) => t.id === l.freeToppingId)?.name
               : null;
+
             const paidToppingLabels = l.toppingIds
               .map((id) => toppings.find((t) => t.id === id)?.name)
               .filter(Boolean) as string[];
@@ -66,28 +73,43 @@ export default function CartPanel({
                     <p className="text-xs text-muted-foreground">
                       {l.optionLabel} • {formatGhs(l.unitPriceGhs)}
                     </p>
+
                     {freeTopping ? (
                       <p className="text-xs text-green-600 mt-1">
-                        🎁 {freeTopping} (free)
+                        {freeTopping}
                       </p>
                     ) : null}
+
                     {paidToppingLabels.length > 0 ? (
                       <p className="text-xs text-muted-foreground mt-1">
                         + {paidToppingLabels.join(", ")}
                       </p>
                     ) : null}
-                    {l.sugarLevel !== null && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        🍬 Sugar: {l.sugarLevel}%
+
+                    {l.sugarLevel !== null ? (
+                      <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <FontAwesomeIcon
+                          icon={faCube}
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                        />
+                        <span>Sugar: {l.sugarLevel}%</span>
                       </p>
-                    )}
-                    {l.spiceLevel !== null && l.spiceLevel > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        🌶️ Spice:{" "}
-                        {spiceLevels.find((s) => s.value === l.spiceLevel)
-                          ?.label ?? "None"}
+                    ) : null}
+
+                    {l.spiceLevel !== null && l.spiceLevel > 0 ? (
+                      <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <FontAwesomeIcon
+                          icon={faFire}
+                          className="h-3.5 w-3.5 text-muted-foreground"
+                        />
+                        <span>
+                          Spice:{" "}
+                          {spiceLevels.find((s) => s.value === l.spiceLevel)
+                            ?.label ?? "None"}
+                        </span>
                       </p>
-                    )}
+                    ) : null}
+
                     {l.note ? (
                       <p className="text-xs text-muted-foreground mt-1 italic">
                         📝 {l.note}
@@ -117,9 +139,11 @@ export default function CartPanel({
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
+
                     <span className="w-6 text-center text-sm font-medium">
                       {l.quantity}
                     </span>
+
                     <Button
                       type="button"
                       size="icon"
@@ -148,16 +172,10 @@ export default function CartPanel({
         type="button"
         className="w-full"
         disabled={cart.length === 0}
-        onClick={() => {
-          alert("Next step: we build checkout flow.");
-        }}
+        onClick={() => router.push("/order/checkout")}
       >
         Checkout • {formatGhs(cartTotal)}
       </Button>
-
-      <p className="mt-3 text-xs text-muted-foreground">
-        Next step can add delivery note, location, and payment.
-      </p>
     </div>
   );
 }
