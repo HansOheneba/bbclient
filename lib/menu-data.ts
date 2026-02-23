@@ -50,11 +50,11 @@ export const categories: Array<{
   key: CategoryKey;
   label: string;
 }> = [
-  { key: "milk-tea", label: "Milk Tea",  },
-  { key: "hq-special", label: "HQ Special", },
-  { key: "iced-tea", label: "Iced Tea",  },
-  { key: "milkshakes", label: "Milkshakes", },
-  { key: "shawarma", label: "Shawarma",},
+  { key: "milk-tea", label: "Milk Tea" },
+  { key: "hq-special", label: "HQ Special" },
+  { key: "iced-tea", label: "Iced Tea" },
+  { key: "milkshakes", label: "Milkshakes" },
+  { key: "shawarma", label: "Shawarma" },
 ];
 
 // ── Toppings ─────────────────────────────────
@@ -316,23 +316,9 @@ export const menu: MenuItem[] = [
   },
 ];
 
-// ── Sugar levels ─────────────────────────────
-export const sugarLevels = [
-  { value: 0, label: "0%" },
-  { value: 25, label: "25%" },
-  { value: 50, label: "50%" },
-  { value: 75, label: "75%" },
-  { value: 100, label: "100%" },
-] as const;
-
-// ── Spice levels ─────────────────────────────
-export const spiceLevels = [
-  { value: 0, label: "None" },
-  { value: 1, label: "Mild" },
-  { value: 2, label: "Medium" },
-  { value: 3, label: "Hot" },
-  { value: 4, label: "Extra Hot" },
-] as const;
+// ── Sugar & Spice levels (re-exported from levels.ts) ──
+export { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
+export type { DiscreteLevel, LevelDef } from "@/lib/levels";
 
 // ── Drink detection ──────────────────────────
 const drinkCategories = new Set<CategoryKey>([

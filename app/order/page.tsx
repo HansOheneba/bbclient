@@ -40,7 +40,7 @@ export default function Home() {
     React.useState<string>("default");
   const [freeToppingId, setFreeToppingId] = React.useState<string | null>(null);
   const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
-  const [sugarLevel, setSugarLevel] = React.useState<number>(50);
+  const [sugarLevel, setSugarLevel] = React.useState<number>(2);
   const [spiceLevel, setSpiceLevel] = React.useState<number>(2);
   const [itemNote, setItemNote] = React.useState<string>("");
 
@@ -63,7 +63,7 @@ export default function Home() {
     setSelectedOptionKey(first ? first.key : "default");
     setFreeToppingId(null);
     setSelectedToppings([]);
-    setSugarLevel(50);
+    setSugarLevel(2);
     setSpiceLevel(2);
     setItemNote("");
   }

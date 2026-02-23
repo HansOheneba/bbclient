@@ -21,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
-import { formatGhs, toppings, spiceLevels } from "@/lib/menu-data";
+import { formatGhs, toppings } from "@/lib/menu-data";
+import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 import { useCartStore, type DeliveryMethod } from "@/lib/store";
 import LocationPicker from "@/components/location-picker";
 
@@ -403,16 +404,17 @@ export default function CheckoutPage() {
 
                             {l.sugarLevel !== null ? (
                               <p className="text-xs text-muted-foreground">
-                                Sugar: {l.sugarLevel}%
+                                Sugar:{" "}
+                                {levelByValue(sugarLevels, l.sugarLevel)
+                                  ?.label ?? "Regular"}
                               </p>
                             ) : null}
 
                             {l.spiceLevel !== null && l.spiceLevel > 0 ? (
                               <p className="text-xs text-muted-foreground">
                                 Spice:{" "}
-                                {spiceLevels.find(
-                                  (s) => s.value === l.spiceLevel,
-                                )?.label ?? "None"}
+                                {levelByValue(spiceLevels, l.spiceLevel)
+                                  ?.label ?? "No spice"}
                               </p>
                             ) : null}
 

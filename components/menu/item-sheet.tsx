@@ -4,6 +4,9 @@ import * as React from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCube, faFire } from "@fortawesome/free-solid-svg-icons";
+
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -16,13 +19,17 @@ import {
 import { Slider } from "@/components/ui/slider";
 import {
   toppings,
-  sugarLevels,
-  spiceLevels,
   formatGhs,
   isDrink,
   isShawarma,
   type MenuItem,
 } from "@/lib/menu-data";
+import {
+  sugarLevels,
+  spiceLevels,
+  levelByValue,
+  type DiscreteLevel,
+} from "@/lib/levels";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -86,10 +93,10 @@ export default function ItemSheet({
 
   const itemIsDrink = item ? isDrink(item) : false;
   const itemIsShawarma = item ? isShawarma(item) : false;
-  const sugarLabel =
-    sugarLevels.find((s) => s.value === sugarLevel)?.label ?? `${sugarLevel}%`;
-  const spiceLabel =
-    spiceLevels.find((s) => s.value === spiceLevel)?.label ?? "None";
+  const sugarMeta = levelByValue(sugarLevels, sugarLevel);
+  const sugarLabel = sugarMeta?.label ?? "Regular";
+  const spiceMeta = levelByValue(spiceLevels, spiceLevel);
+  const spiceLabel = spiceMeta?.label ?? "No spice";
 
   function buildIntentSentence(args: {
     itemName: string;
@@ -123,9 +130,9 @@ export default function ItemSheet({
                 paidToppingNames[paidToppingNames.length - 1]
               }`;
 
-    const sugarSuffix = sugarPct ? ` at ${sugarPct} sugar` : "";
+    const sugarSuffix = sugarPct ? `, ${sugarPct} sugar` : "";
     const spiceSuffix =
-      spiciness && spiciness !== "None" ? `, ${spiciness} spice` : "";
+      spiciness && spiciness !== "No spice" ? `, ${spiciness} spice` : "";
     const suffix = `${sugarSuffix}${spiceSuffix}`;
 
     if (!freeToppingName && paidToppingNames.length === 0) {
@@ -272,76 +279,118 @@ export default function ItemSheet({
 
                     {/* Sugar level – drinks only */}
                     {itemIsDrink && (
-                      <div>
-                        <p className="text-sm font-medium mb-1">Sugar level</p>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Slide to pick your sweetness — {sugarLabel}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <Slider
-                            min={0}
-                            max={100}
-                            step={25}
-                            value={[sugarLevel]}
-                            onValueChange={([v]) => onSugarLevelChange(v)}
-                            className="flex-1"
-                          />
-                          <span className="text-sm font-semibold w-12 text-right">
-                            {sugarLabel}
-                          </span>
+                      <div className="space-y-3">
+                        <div className="flex items-baseline justify-between">
+                          <p className="text-sm font-medium">Sugar level</p>
+                          {sugarMeta && (
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium text-foreground">
+                                {sugarMeta.label}
+                              </span>
+                              <span className="ml-2 text-xs">
+                                {sugarMeta.sublabel}
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        <div className="flex justify-between mt-1 px-0.5">
-                          {sugarLevels.map((s) => (
-                            <span
-                              key={s.value}
-                              className={cn(
-                                "text-[10px]",
-                                s.value === sugarLevel
-                                  ? "text-foreground font-medium"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {s.label}
-                            </span>
-                          ))}
+
+                        <Slider
+                          min={0}
+                          max={4}
+                          step={1}
+                          value={[sugarLevel]}
+                          onValueChange={([v]) => onSugarLevelChange(v)}
+                        />
+
+                        <div className="grid grid-cols-5">
+                          {sugarLevels.map((s, idx) => {
+                            // Opacity ramps up with each step
+                            const opacity = 0.15 + (s.value / 4) * 0.85;
+                            return (
+                              <div
+                                key={s.value}
+                                className={cn(
+                                  "flex flex-col items-center gap-0.5 select-none",
+                                  idx === 0 && "items-start",
+                                  idx === sugarLevels.length - 1 && "items-end",
+                                  s.value === sugarLevel
+                                    ? "font-medium text-foreground"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                <FontAwesomeIcon
+                                  icon={faCube}
+                                  className="h-3.5 w-3.5"
+                                  style={{ opacity }}
+                                />
+                                <span className="text-[10px] leading-tight">
+                                  {s.label}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
                     {/* Spiciness – shawarma only */}
                     {itemIsShawarma && (
-                      <div>
-                        <p className="text-sm font-medium mb-1">Spiciness</p>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          How hot do you want it? — {spiceLabel}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <Slider
-                            min={0}
-                            max={4}
-                            step={1}
-                            value={[spiceLevel]}
-                            onValueChange={([v]) => onSpiceLevelChange(v)}
-                            className="flex-1"
-                          />
-                          <span className="text-sm font-semibold w-20 text-right">
-                            {spiceLabel}
-                          </span>
+                      <div className="space-y-3">
+                        <div className="flex items-baseline justify-between">
+                          <p className="text-sm font-medium">Spiciness</p>
+                          {spiceMeta && (
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium text-foreground">
+                                {spiceMeta.label}
+                              </span>
+                              <span className="ml-2 text-xs">
+                                {spiceMeta.sublabel}
+                              </span>
+                            </p>
+                          )}
                         </div>
-                        <div className="flex justify-between mt-1 px-0.5">
-                          {spiceLevels.map((s) => (
-                            <span
-                              key={s.value}
-                              className={cn(
-                                "text-[10px]",
-                                s.value === spiceLevel
-                                  ? "text-foreground font-medium"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {s.label}
-                            </span>
-                          ))}
+
+                        <Slider
+                          min={0}
+                          max={4}
+                          step={1}
+                          value={[spiceLevel]}
+                          onValueChange={([v]) => onSpiceLevelChange(v)}
+                        />
+
+                        <div className="grid grid-cols-5">
+                          {spiceLevels.map((s, idx) => {
+                            // Deeper red as spice increases
+                            const opacity = 0.15 + (s.value / 4) * 0.85;
+                            return (
+                              <div
+                                key={s.value}
+                                className={cn(
+                                  "flex flex-col items-center gap-0.5 select-none",
+                                  idx === 0 && "items-start",
+                                  idx === spiceLevels.length - 1 && "items-end",
+                                  s.value === spiceLevel
+                                    ? "font-medium"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                <FontAwesomeIcon
+                                  icon={faFire}
+                                  className="h-3.5 w-3.5"
+                                  style={{
+                                    opacity,
+                                    color:
+                                      s.value === 0
+                                        ? undefined
+                                        : `rgba(220, 38, 38, ${opacity})`,
+                                  }}
+                                />
+                                <span className="text-[10px] leading-tight">
+                                  {s.label}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

@@ -8,12 +8,8 @@ import { faFire, faCube } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  type CartLine,
-  toppings,
-  spiceLevels,
-  formatGhs,
-} from "@/lib/menu-data";
+import { type CartLine, toppings, formatGhs } from "@/lib/menu-data";
+import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 
 type CartPanelProps = {
   cart: CartLine[];
@@ -92,7 +88,10 @@ export default function CartPanel({
                           icon={faCube}
                           className="h-3.5 w-3.5 text-muted-foreground"
                         />
-                        <span>Sugar: {l.sugarLevel}%</span>
+                        <span>
+                          {levelByValue(sugarLevels, l.sugarLevel)?.label ??
+                            "Regular"}
+                        </span>
                       </p>
                     ) : null}
 
@@ -103,9 +102,8 @@ export default function CartPanel({
                           className="h-3.5 w-3.5 text-muted-foreground"
                         />
                         <span>
-                          Spice:{" "}
-                          {spiceLevels.find((s) => s.value === l.spiceLevel)
-                            ?.label ?? "None"}
+                          {levelByValue(spiceLevels, l.spiceLevel)?.label ??
+                            "No spice"}
                         </span>
                       </p>
                     ) : null}
