@@ -9,6 +9,12 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function useMounted(): boolean {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  return mounted;
+}
+
 type CategoryNavProps = {
   activeCategory: CategoryKey;
   onCategoryChange: (key: CategoryKey) => void;
@@ -37,6 +43,7 @@ export default function CategoryNav({
   getSectionId,
   scrollOnSelect = true,
 }: CategoryNavProps) {
+  const mounted = useMounted();
   const scrollerRef = React.useRef<HTMLDivElement | null>(null);
   const btnRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -110,7 +117,13 @@ export default function CategoryNav({
         <div className="mx-auto max-w-7xl px-4 pt-3 pb-2">
           {/* Search bar like the screenshot */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+              {mounted ? (
+                <Search className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <span className="block h-4 w-4" aria-hidden="true" />
+              )}
+            </div>
             <Input
               value={query}
               onChange={(e) => {
@@ -131,7 +144,11 @@ export default function CategoryNav({
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
                 aria-label="Clear search"
               >
-                <X className="h-4 w-4" />
+                {mounted ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <span className="block h-4 w-4" aria-hidden="true" />
+                )}
               </button>
             )}
           </div>

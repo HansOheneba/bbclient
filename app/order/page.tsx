@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 
 import CategoryNav from "@/components/menu/category-nav";
-import MenuGrid from "@/components/menu/menu-grid";
-import CartPanel from "@/components/menu/cart-panel";
+import MenuGrid, { MenuGridSkeleton } from "@/components/menu/menu-grid";
+import CartPanel, { CartPanelSkeleton } from "@/components/menu/cart-panel";
 import ItemSheet from "@/components/menu/item-sheet";
 import FloatingCartButton from "@/components/menu/floating-cart-button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -20,6 +20,12 @@ import {
 import { useCartStore } from "@/lib/store";
 
 export default function Home() {
+  // ── Hydration / mount loading state ──────
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // ── Category & search state ──────────────
   const [activeCategory, setActiveCategory] =
     React.useState<CategoryKey>("milk-tea");
@@ -139,7 +145,14 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
           <div className="leading-tight">
             <p className="font-semibold flex items-center gap-2">
-              <FontAwesomeIcon icon={greeting.icon} className="text-[#fffff]" />
+              {mounted ? (
+                <FontAwesomeIcon
+                  icon={greeting.icon}
+                  className="text-[#fffff]"
+                />
+              ) : (
+                <span className="block h-5 w-5" aria-hidden="true" />
+              )}
               {greeting.text}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -206,40 +219,50 @@ export default function Home() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6">
           {/* Menu grid */}
-          <MenuGrid
-            items={filteredItems}
-            query={query}
-            onItemClick={(item) => {
-              setOpenItemId(item.id);
-              resetItemModalDefaults(item);
-            }}
-          />
+          {!mounted ? (
+            <MenuGridSkeleton />
+          ) : (
+            <MenuGrid
+              items={filteredItems}
+              query={query}
+              onItemClick={(item) => {
+                setOpenItemId(item.id);
+                resetItemModalDefaults(item);
+              }}
+            />
+          )}
 
           {/* Desktop cart sidebar */}
           <aside className="hidden md:block">
             <div className="sticky top-[140px] h-[calc(100vh-170px)] rounded-2xl border bg-card p-4">
-              <CartPanel
-                cart={cart}
-                cartCount={cartCount}
-                cartTotal={cartTotal}
-                onInc={incLine}
-                onDec={decLine}
-                onRemove={removeLine}
-              />
+              {!mounted ? (
+                <CartPanelSkeleton />
+              ) : (
+                <CartPanel
+                  cart={cart}
+                  cartCount={cartCount}
+                  cartTotal={cartTotal}
+                  onInc={incLine}
+                  onDec={decLine}
+                  onRemove={removeLine}
+                />
+              )}
             </div>
           </aside>
         </div>
       </main>
 
       {/* Floating cart button for mobile/tablet – opens Dialog modal */}
-      <FloatingCartButton
-        cart={cart}
-        cartCount={cartCount}
-        cartTotal={cartTotal}
-        onInc={incLine}
-        onDec={decLine}
-        onRemove={removeLine}
-      />
+      {mounted && (
+        <FloatingCartButton
+          cart={cart}
+          cartCount={cartCount}
+          cartTotal={cartTotal}
+          onInc={incLine}
+          onDec={decLine}
+          onRemove={removeLine}
+        />
+      )}
 
       {/* Item customisation modal */}
       <ItemSheet

@@ -8,6 +8,7 @@ import { faFire, faCube } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type CartLine, toppings, formatGhs } from "@/lib/menu-data";
 import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 
@@ -19,6 +20,50 @@ type CartPanelProps = {
   onDec: (lineId: string) => void;
   onRemove: (lineId: string) => void;
 };
+
+/* ── Cart skeleton for initial loading state ───────── */
+export function CartPanelSkeleton() {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-5 w-24 rounded" />
+          <Skeleton className="mt-1.5 h-4 w-36 rounded" />
+        </div>
+        <Skeleton className="h-6 w-16 rounded-full" />
+      </div>
+
+      <Separator className="my-4" />
+
+      <div className="flex-1 overflow-auto space-y-3 pr-1">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Skeleton className="h-4 w-2/3 rounded" />
+                <Skeleton className="mt-1.5 h-3 w-1/2 rounded" />
+                <Skeleton className="mt-1.5 h-3 w-1/3 rounded" />
+              </div>
+              <Skeleton className="h-6 w-6 rounded" />
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-4 w-6 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+              <Skeleton className="h-4 w-16 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Separator className="my-4" />
+
+      <Skeleton className="h-10 w-full rounded-md" />
+    </div>
+  );
+}
 
 export default function CartPanel({
   cart,

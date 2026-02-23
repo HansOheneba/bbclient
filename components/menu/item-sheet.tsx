@@ -9,6 +9,7 @@ import { faCube, faFire } from "@fortawesome/free-solid-svg-icons";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +34,29 @@ import {
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
+}
+
+/* ── Sheet banner image with skeleton ──────────────── */
+function SheetImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = React.useState(false);
+
+  return (
+    <div
+      className="relative w-full h-48 -mt-4 -mx-4 mb-4"
+      style={{ width: "calc(100% + 2rem)" }}
+    >
+      {!loaded && <Skeleton className="absolute inset-0 z-10 rounded-t-2xl" />}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 640px) 100vw, 560px"
+        className="object-cover rounded-t-2xl"
+        priority
+        onLoad={() => setLoaded(true)}
+      />
+    </div>
+  );
 }
 
 type ItemSheetProps = {
@@ -226,19 +250,7 @@ export default function ItemSheet({
                 <>
                   {/* Product image banner */}
                   {item.image && (
-                    <div
-                      className="relative w-full h-48 -mt-4 -mx-4 mb-4"
-                      style={{ width: "calc(100% + 2rem)" }}
-                    >
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 560px"
-                        className="object-cover rounded-t-2xl"
-                        priority
-                      />
-                    </div>
+                    <SheetImage src={item.image} alt={item.name} />
                   )}
 
                   <SheetHeader className="pr-12">

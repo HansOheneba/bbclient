@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { formatGhs, toppings } from "@/lib/menu-data";
 import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
@@ -122,8 +123,55 @@ export default function CheckoutPage() {
   // ── Loading / hydration ───────────────────
   if (!hydrated) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <p className="text-muted-foreground">Loading…</p>
+      <div className="min-h-screen bg-background text-foreground">
+        {/* Skeleton header */}
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+          <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-xl" />
+            <div className="min-w-0">
+              <Skeleton className="h-5 w-24 rounded" />
+              <Skeleton className="mt-1 h-3 w-48 rounded" />
+            </div>
+            <div className="flex-1" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-6xl px-4 py-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+            {/* Left form skeleton */}
+            <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-5">
+              <Skeleton className="h-5 w-48 rounded" />
+              <Skeleton className="h-4 w-64 rounded" />
+              <Separator />
+              <div className="flex gap-3">
+                <Skeleton className="h-10 w-32 rounded-full" />
+                <Skeleton className="h-10 w-32 rounded-full" />
+              </div>
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </section>
+
+            {/* Right summary skeleton */}
+            <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-4">
+              <Skeleton className="h-5 w-36 rounded" />
+              <Separator />
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="h-12 w-12 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-2/3 rounded" />
+                    <Skeleton className="h-3 w-1/2 rounded" />
+                  </div>
+                  <Skeleton className="h-4 w-14 rounded" />
+                </div>
+              ))}
+              <Separator />
+              <Skeleton className="h-10 w-full rounded-2xl" />
+            </section>
+          </div>
+        </main>
       </div>
     );
   }
