@@ -94,7 +94,7 @@ export default function CheckoutPage() {
   // ── Success screen ────────────────────────
   if (submitted && orderId) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+      <div className="min-h-screen bg-black text-foreground flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="mx-auto w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center">
             <CheckCircle2 className="h-10 w-10 text-green-600" />

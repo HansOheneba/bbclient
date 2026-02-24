@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="relative min-h-screen bg-[#07040b] text-white overflow-hidden">
+    <div className="relative min-h-screen bg-black text-white overflow-hidden">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.18),transparent_55%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(236,72,153,0.12),transparent_55%)]" />
@@ -13,7 +13,7 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <main className="relative z-10">
-        <section className="mx-auto max-w-7xl px-6 pt-16 pb-24 text-center">
+        <section className="mx-auto max-w-7xl px-6 pt-16 pb-24 text-center bg-black">
           <div className="mx-auto max-w-3xl space-y-6">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
               Boba, Iced Tea &{" "}

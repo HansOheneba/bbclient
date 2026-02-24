@@ -107,13 +107,52 @@ export default function CategoryNav({
       window.removeEventListener("resize", onResize);
       window.clearTimeout(t);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
+
+
+  React.useEffect(() => {
+    const ids = categories.map((c) => sectionIdFor(c.key));
+    const els = ids
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+    if (els.length === 0) return;
+
+    let latest: CategoryKey | null = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length === 0) return;
+
+        // Pick the entry with largest intersectionRatio (most visible)
+        visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const id = visible[0].target.id;
+        const cat = categories.find((c) => sectionIdFor(c.key) === id)?.key;
+        if (cat && cat !== latest) {
+          latest = cat;
+          onCategoryChange(cat);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-40% 0px -40% 0px",
+        threshold: Array.from({ length: 21 }, (_, i) => i / 20),
+      },
+    );
+
+    els.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+    // Intentionally omit `activeCategory` so scroll drives updates,
+    // include `getSectionId` as it can change mapping.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getSectionId, onCategoryChange]);
 
   return (
     <div className="sticky top-0 z-40">
       {/* This background block mimics the app header feel */}
-      <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b">
+      <div className="bg-background/95 backdrop-blur bg-black border-b">
         <div className="mx-auto max-w-7xl px-4 pt-3 pb-2">
           {/* Search bar like the screenshot */}
           <div className="relative">

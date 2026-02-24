@@ -316,6 +316,45 @@ export const menu: MenuItem[] = [
   },
 ];
 
+// Assign a stable image URL to every menu item to simulate a backend
+// providing `image` as part of the item payload. Assignment is
+// deterministic: we pick from a category-specific pool using a
+// simple hash of the `item.id` so the same item always gets the same
+// image across runs.
+const _imagesByCategory: Record<string, string[]> = {
+  "milk-tea": [
+    "/menu/caramel.jpg",
+    "/menu/coffe.jpg",
+    "/menu/oreo.jpg",
+    "/menu/strawberry.jpg",
+  ],
+  "hq-special": [
+    "/menu/strawberry.jpg",
+    "/menu/caramel.jpg",
+    "/menu/coffe.jpg",
+  ],
+  "iced-tea": ["/menu/strawberry.jpg", "/menu/coffe.jpg"],
+  milkshakes: [
+    "/menu/milkshake1.jpg",
+    "/menu/milkshake2.jpg",
+    "/menu/milkshake3.jpg",
+  ],
+  // keep shawarma pointing to the existing shawarma image in public root
+  shawarma: ["/shawarma.jpg"],
+};
+
+function _deterministicPick(id: string, pool: string[]) {
+  let sum = 0;
+  for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
+  return pool[sum % pool.length];
+}
+
+for (const item of menu) {
+  const pool =
+    _imagesByCategory[item.category] ?? _imagesByCategory["milk-tea"];
+  item.image = _deterministicPick(item.id, pool);
+}
+
 // ── Sugar & Spice levels (re-exported from levels.ts) ──
 export { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 export type { DiscreteLevel, LevelDef } from "@/lib/levels";
