@@ -234,7 +234,7 @@ export default function Home() {
 
           {/* Desktop cart sidebar */}
           <aside className="hidden md:block">
-            <div className="sticky top-[140px] h-[calc(100vh-170px)] rounded-2xl border bg-card p-4">
+            <div className="sticky top-[200px] rounded-2xl border bg-card p-4">
               {!mounted ? (
                 <CartPanelSkeleton />
               ) : (
