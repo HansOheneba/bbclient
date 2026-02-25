@@ -20,18 +20,7 @@ type CategoryNavProps = {
   onCategoryChange: (key: CategoryKey) => void;
   query: string;
   onQueryChange: (value: string) => void;
-
-  /**
-   * Optional:
-   * If your sections have different ids than the category key,
-   * pass a mapper here.
-   */
   getSectionId?: (key: CategoryKey) => string;
-
-  /**
-   * Optional:
-   * If you do not want auto-scrolling, set false.
-   */
   scrollOnSelect?: boolean;
 };
 
@@ -47,13 +36,22 @@ export default function CategoryNav({
   const scrollerRef = React.useRef<HTMLDivElement | null>(null);
   const btnRefs = React.useRef<Record<string, HTMLButtonElement | null>>({});
 
+  // Track whether the user manually clicked a tab so we can
+  // suppress the scroll-observer from fighting the click.
+  const userClickedRef = React.useRef(false);
+  const clickLockTimer = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  // Debounce timer for the scroll observer
+  const debounceTimer = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
   const [indicator, setIndicator] = React.useState<{
     left: number;
     width: number;
-  }>({
-    left: 0,
-    width: 0,
-  });
+  }>({ left: 0, width: 0 });
 
   function sectionIdFor(key: CategoryKey) {
     return getSectionId ? getSectionId(key) : String(key);
@@ -63,9 +61,6 @@ export default function CategoryNav({
     const id = sectionIdFor(key);
     const el = document.getElementById(id);
     if (!el) return;
-
-    // Best practice: add scroll-mt on the section so sticky headers do not cover it.
-    // Example: <section id="starter" className="scroll-mt-36">
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -82,7 +77,6 @@ export default function CategoryNav({
       width: btnRect.width,
     });
 
-    // Keep the active tab in view
     activeBtn.scrollIntoView({
       behavior: "smooth",
       inline: "center",
@@ -98,63 +92,76 @@ export default function CategoryNav({
   React.useEffect(() => {
     const onResize = () => updateIndicator();
     window.addEventListener("resize", onResize);
-
-    // If fonts load late, widths can change
-    // This is light and helps keep the underline aligned.
     const t = window.setTimeout(() => updateIndicator(), 150);
-
     return () => {
       window.removeEventListener("resize", onResize);
       window.clearTimeout(t);
     };
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
+  // Scroll-position based active section detection.
+  // This is more reliable than IntersectionObserver for nav sync because
+  // we measure each section's top offset directly and pick the one closest
+  // to the viewport top — with a debounce so it doesn't fire on every pixel.
   React.useEffect(() => {
-    const ids = categories.map((c) => sectionIdFor(c.key));
-    const els = ids
-      .map((id) => document.getElementById(id))
-      .filter(Boolean) as HTMLElement[];
-    if (els.length === 0) return;
+    const DEBOUNCE_MS = 80; // wait for scroll to settle before updating nav
+    const NAV_OFFSET = 120; // approximate sticky nav height in px
 
-    let latest: CategoryKey | null = null;
+    function getActiveSection(): CategoryKey | null {
+      const pairs = categories
+        .map((c) => {
+          const el = document.getElementById(sectionIdFor(c.key));
+          if (!el) return null;
+          const top = el.getBoundingClientRect().top - NAV_OFFSET;
+          return { key: c.key, top };
+        })
+        .filter(Boolean) as { key: CategoryKey; top: number }[];
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length === 0) return;
+      if (pairs.length === 0) return null;
 
-        // Pick the entry with largest intersectionRatio (most visible)
-        visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        const id = visible[0].target.id;
-        const cat = categories.find((c) => sectionIdFor(c.key) === id)?.key;
-        if (cat && cat !== latest) {
-          latest = cat;
-          onCategoryChange(cat);
+      // Find the last section whose top is at or above the viewport fold
+      // i.e. top <= 0, meaning we've scrolled past its start.
+      const passed = pairs.filter((p) => p.top <= 0);
+
+      if (passed.length === 0) {
+        // Haven't reached any section yet — use the first
+        return pairs[0].key;
+      }
+
+      // The most recently passed section = largest (least negative) top
+      passed.sort((a, b) => b.top - a.top);
+      return passed[0].key;
+    }
+
+    function onScroll() {
+      // If the user just clicked a tab, let the programmatic scroll finish
+      // before we re-engage the observer so the nav doesn't jump back.
+      if (userClickedRef.current) return;
+
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+      debounceTimer.current = setTimeout(() => {
+        const next = getActiveSection();
+        if (next && next !== activeCategory) {
+          onCategoryChange(next);
         }
-      },
-      {
-        root: null,
-        rootMargin: "-40% 0px -40% 0px",
-        threshold: Array.from({ length: 21 }, (_, i) => i / 20),
-      },
-    );
+      }, DEBOUNCE_MS);
+    }
 
-    els.forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-    // Intentionally omit `activeCategory` so scroll drives updates,
-    // include `getSectionId` as it can change mapping.
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getSectionId, onCategoryChange]);
+  }, [activeCategory, getSectionId, onCategoryChange]);
 
   return (
     <div className="sticky top-0 z-40">
-      {/* This background block mimics the app header feel */}
       <div className="bg-background/95 backdrop-blur bg-black border-b">
         <div className="mx-auto max-w-7xl px-4 pt-3 pb-2">
-          {/* Search bar like the screenshot */}
+          {/* Search */}
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2">
               {mounted ? (
@@ -167,7 +174,6 @@ export default function CategoryNav({
               value={query}
               onChange={(e) => {
                 onQueryChange(e.target.value);
-                // Scroll to top so results are visible, not stuck at the footer
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className={cn(
@@ -192,7 +198,7 @@ export default function CategoryNav({
             )}
           </div>
 
-          {/* Tabs row */}
+          {/* Tabs */}
           <div className="mt-3">
             <div
               ref={scrollerRef}
@@ -213,12 +219,24 @@ export default function CategoryNav({
                     type="button"
                     onClick={() => {
                       onCategoryChange(c.key);
+
+                      // Lock the scroll observer out for long enough that the
+                      // smooth-scroll animation completes (~800 ms is safe for
+                      // most page lengths). Without this the observer fires
+                      // mid-scroll and snaps the nav back to the wrong tab.
+                      userClickedRef.current = true;
+                      if (clickLockTimer.current)
+                        clearTimeout(clickLockTimer.current);
+                      clickLockTimer.current = setTimeout(() => {
+                        userClickedRef.current = false;
+                      }, 900);
+
                       if (scrollOnSelect) scrollToCategory(c.key);
                     }}
                     className={cn(
                       "relative shrink-0",
                       "text-sm font-semibold",
-                      "transition-colors",
+                      "transition-colors duration-200",
                       active
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground",
@@ -232,22 +250,21 @@ export default function CategoryNav({
               {/* Sliding underline indicator */}
               <span
                 aria-hidden="true"
-                className="absolute bottom-0 h-[3px] rounded-full transition-[transform,width] duration-300 ease-out"
+                className="absolute bottom-0 h-[3px] rounded-full"
                 style={{
                   width: `${indicator.width}px`,
                   transform: `translateX(${indicator.left}px)`,
-
-                  // Neon gradient based on #b94888
+                  // Smooth CSS transition on the underline itself
+                  transition:
+                    "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
                   background:
                     "linear-gradient(90deg, #ff7bb8 0%, #b94888 50%, #ff7bb8 100%)",
-
-                  // Neon glow layers
                   boxShadow: `
-      0 0 6px rgba(185,72,136,0.9),
-      0 0 12px rgba(185,72,136,0.8),
-      0 0 20px rgba(185,72,136,0.6),
-      0 0 30px rgba(185,72,136,0.4)
-    `,
+                    0 0 6px rgba(185,72,136,0.9),
+                    0 0 12px rgba(185,72,136,0.8),
+                    0 0 20px rgba(185,72,136,0.6),
+                    0 0 30px rgba(185,72,136,0.4)
+                  `,
                 }}
               />
             </div>
