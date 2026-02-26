@@ -8,6 +8,7 @@ import {
   isShawarma,
 } from "@/lib/menu-data";
 import type { DeliveryLocationPayload } from "@/lib/location-types";
+import { placeOrderApi } from "@/lib/api";
 
 // ── Order types ──────────────────────────────
 export type DeliveryMethod = "delivery" | "pickup";
@@ -20,7 +21,8 @@ export type OrderStatus =
   | "delivered";
 
 export type Order = {
-  id: string;
+  id: string; // local UUID kept for de-duplication / history
+  apiOrderId: number | null; // real ID returned by the server
   items: CartLine[];
   subtotal: number;
   deliveryFee: number;
@@ -36,7 +38,8 @@ export type Order = {
 };
 
 // ── Cart helpers ─────────────────────────────
-function calcToppingExtras(toppingIds: string[]): number {
+
+function calcToppingExtras(toppingIds: number[]): number {
   return toppingIds.reduce((sum, id) => {
     const t = toppings.find((tp) => tp.id === id);
     return sum + (t?.priceGhs ?? 0);
@@ -52,13 +55,12 @@ function calcCartTotal(cart: CartLine[]): number {
 
 // ── Store shape ──────────────────────────────
 type CartStore = {
-  // Cart
   cart: CartLine[];
   addLine: (
     item: MenuItem,
     optionKey: string,
-    freeTopping: string | null,
-    toppingIds: string[],
+    freeTopping: number | null,
+    toppingIds: number[],
     sugar: number,
     spice: number,
     note: string,
@@ -69,11 +71,9 @@ type CartStore = {
   removeLine: (lineId: string) => void;
   clearCart: () => void;
 
-  // Derived (computed on access – stored for convenience)
   cartCount: () => number;
   cartTotal: () => number;
 
-  // Checkout info
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
@@ -87,15 +87,18 @@ type CartStore = {
   setDeliveryMethod: (v: DeliveryMethod) => void;
   setDeliveryLocation: (v: DeliveryLocationPayload | null) => void;
 
-  // Orders
   orders: Order[];
-  placeOrder: () => Order | null;
+  /**
+   * Sends the cart to the API and, on success, clears the cart and saves the
+   * order to local history.  Returns the created Order (with apiOrderId set)
+   * or throws an Error if the API call fails.
+   */
+  placeOrder: () => Promise<Order>;
 };
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
-      // ── Cart state ─────────────────────────
       cart: [],
 
       addLine: (
@@ -108,20 +111,39 @@ export const useCartStore = create<CartStore>()(
         note,
         quantity = 1,
       ) => {
-        const option =
-          item.options.find((o) => o.key === optionKey) ?? item.options[0];
-        if (!option) return;
-
         const shawarma = isShawarma(item);
+        const drink = isDrink(item);
+
+        let unitPriceGhs: number;
+        let resolvedOptionKey: string;
+        let resolvedOptionLabel: string;
+        let resolvedVariantId: number | undefined;
+
+        if (drink) {
+          unitPriceGhs = item.priceGhs ?? 0;
+          resolvedOptionKey = "default";
+          resolvedOptionLabel = "";
+          resolvedVariantId = undefined;
+        } else {
+          const option =
+            item.options.find((o) => o.key === optionKey) ?? item.options[0];
+          if (!option) return;
+          unitPriceGhs = option.priceGhs;
+          resolvedOptionKey = option.key;
+          resolvedOptionLabel = option.label;
+          // option.id is the DB variantId the backend needs
+          resolvedVariantId = option.id;
+        }
+
         const trimmedNote = note.trim();
-        const sugarVal = isDrink(item) ? sugar : null;
+        const sugarVal = drink ? sugar : null;
         const spiceVal = shawarma ? spice : null;
         const finalFreeTopping = shawarma ? null : freeTopping;
         const finalToppingIds = shawarma ? [] : toppingIds;
 
         const signature = trimmedNote
-          ? crypto.randomUUID() // notes always create a separate line
-          : `${item.id}|${option.key}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}`;
+          ? crypto.randomUUID()
+          : `${item.id}|${resolvedOptionKey}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}`;
 
         set((state) => {
           const existing = state.cart.find(
@@ -144,9 +166,10 @@ export const useCartStore = create<CartStore>()(
             lineId: crypto.randomUUID(),
             itemId: item.id,
             itemName: item.name,
-            optionKey: option.key,
-            optionLabel: option.label,
-            unitPriceGhs: option.priceGhs,
+            optionKey: resolvedOptionKey,
+            optionLabel: resolvedOptionLabel,
+            variantId: resolvedVariantId, // ← new field
+            unitPriceGhs,
             quantity,
             freeToppingId: finalFreeTopping,
             toppingIds: finalToppingIds,
@@ -182,11 +205,9 @@ export const useCartStore = create<CartStore>()(
 
       clearCart: () => set({ cart: [] }),
 
-      // ── Derived ────────────────────────────
       cartCount: () => get().cart.reduce((sum, l) => sum + l.quantity, 0),
       cartTotal: () => calcCartTotal(get().cart),
 
-      // ── Checkout info ──────────────────────
       customerName: "",
       customerPhone: "",
       deliveryAddress: "",
@@ -200,52 +221,97 @@ export const useCartStore = create<CartStore>()(
       setDeliveryMethod: (v) => set({ deliveryMethod: v }),
       setDeliveryLocation: (v) => set({ deliveryLocation: v }),
 
-      // ── Orders ─────────────────────────────
       orders: [],
 
-      placeOrder: () => {
+      placeOrder: async () => {
+        console.log("=== PLACE ORDER STORE ===");
         const state = get();
-        if (state.cart.length === 0) return null;
 
-        const subtotal = calcCartTotal(state.cart);
-        const deliveryFee = state.deliveryMethod === "delivery" ? 10 : 0;
-
-        const order: Order = {
-          id: crypto.randomUUID(),
-          items: [...state.cart],
-          subtotal,
-          deliveryFee,
-          total: subtotal + deliveryFee,
-          deliveryMethod: state.deliveryMethod,
+        console.log("Current store state:", {
+          cartLength: state.cart.length,
           customerName: state.customerName,
           customerPhone: state.customerPhone,
-          deliveryAddress:
-            state.deliveryLocation?.label ?? state.deliveryAddress,
-          deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
+          deliveryMethod: state.deliveryMethod,
           deliveryLocation: state.deliveryLocation,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        };
+        });
 
-        console.log("[placeOrder] payload:", JSON.stringify(order, null, 2));
+        if (state.cart.length === 0) {
+          console.error("Cart is empty");
+          throw new Error("Your cart is empty");
+        }
 
-        set((s) => ({
-          orders: [order, ...s.orders],
-          cart: [],
-          // Reset checkout fields
-          customerName: "",
-          customerPhone: "",
-          deliveryAddress: "",
-          deliveryNote: "",
-          deliveryMethod: "delivery",
-          deliveryLocation: null,
-        }));
+        const locationText =
+          state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
 
-        return order;
+        console.log("Location text for API:", locationText);
+        console.log(
+          "Cart items:",
+          state.cart.map((item) => ({
+            id: item.itemId,
+            name: item.itemName,
+            variant: item.variantId,
+            quantity: item.quantity,
+            toppings: item.toppingIds,
+            freeTopping: item.freeToppingId,
+          })),
+        );
+
+        try {
+          console.log("Calling placeOrderApi...");
+          // Call the real API — throws on failure
+          const response = await placeOrderApi({
+            phone: state.customerPhone,
+            locationText,
+            notes: state.deliveryLocation?.notes ?? state.deliveryNote,
+            items: state.cart,
+          });
+
+          console.log("API Response received:", response);
+
+          const subtotal = calcCartTotal(state.cart);
+          const deliveryFee = state.deliveryMethod === "delivery" ? 10 : 0;
+
+          const order: Order = {
+            id: crypto.randomUUID(), // local reference
+            apiOrderId: response.orderId, // real server ID
+            items: [...state.cart],
+            subtotal,
+            deliveryFee,
+            total: subtotal + deliveryFee,
+            deliveryMethod: state.deliveryMethod,
+            customerName: state.customerName,
+            customerPhone: state.customerPhone,
+            deliveryAddress: locationText,
+            deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
+            deliveryLocation: state.deliveryLocation,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          };
+
+          console.log("Order created:", order);
+
+      
+          set((s) => ({
+            orders: [order, ...s.orders],
+            cart: [],
+            customerName: "",
+            customerPhone: "",
+            deliveryAddress: "",
+            deliveryNote: "",
+            deliveryMethod: "delivery",
+            deliveryLocation: null,
+          }));
+
+          console.log("Store updated, cart cleared");
+          return order;
+        } catch (error) {
+          console.error("Place order failed:", error);
+          throw error;
+        }
       },
     }),
     {
-      name: "bb-cart-storage", // localStorage key
+      name: "bb-cart-storage",
       partialize: (state) => ({
         cart: state.cart,
         orders: state.orders,

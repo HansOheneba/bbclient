@@ -11,20 +11,19 @@ import ItemSheet from "@/components/menu/item-sheet";
 import FloatingCartButton from "@/components/menu/floating-cart-button";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun, faCloudSun, faMoon } from "@fortawesome/free-solid-svg-icons";
-import {
-  type CategoryKey,
-  type MenuItem,
-  menu,
-  categories,
-} from "@/lib/menu-data";
+import { type CategoryKey, type MenuItem, categories } from "@/lib/menu-data";
+import { useCatalog } from "@/lib/use-catalog";
 import { useCartStore } from "@/lib/store";
 
 export default function Home() {
-  // ── Hydration / mount loading state ──────
+  // ── Hydration guard ──────────────────────
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ── Live catalog from API ─────────────────
+  const { items: allItems, loading: catalogLoading } = useCatalog();
 
   // ── Category & search state ──────────────
   const [activeCategory, setActiveCategory] =
@@ -41,27 +40,31 @@ export default function Home() {
   const removeLine = useCartStore((s) => s.removeLine);
 
   // ── Item modal state ─────────────────────
-  const [openItemId, setOpenItemId] = React.useState<string | null>(null);
+  const [openItemId, setOpenItemId] = React.useState<number | null>(null);
   const [selectedOptionKey, setSelectedOptionKey] =
     React.useState<string>("default");
-  const [freeToppingId, setFreeToppingId] = React.useState<string | null>(null);
-  const [selectedToppings, setSelectedToppings] = React.useState<string[]>([]);
+const [freeToppingId, setFreeToppingId] = React.useState<number | null>(null);
+const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
   const [sugarLevel, setSugarLevel] = React.useState<number>(2);
   const [spiceLevel, setSpiceLevel] = React.useState<number>(2);
   const [itemNote, setItemNote] = React.useState<string>("");
 
-  // ── Derived values ───────────────────────
+  // ── Filtered items ───────────────────────
   const filteredItems = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return menu;
-    return menu.filter(
+    if (!q) return allItems;
+    return allItems.filter(
       (m) =>
         m.name.toLowerCase().includes(q) ||
         m.description.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, allItems]);
 
-  const openItem = openItemId ? menu.find((m) => m.id === openItemId) : null;
+  // item currently open in the sheet
+  const openItem =
+    openItemId !== null
+      ? (allItems.find((m) => m.id === openItemId) ?? null)
+      : null;
 
   // ── Helpers ──────────────────────────────
   function resetItemModalDefaults(item: MenuItem) {
@@ -74,33 +77,18 @@ export default function Home() {
     setItemNote("");
   }
 
+  // ── Greeting ─────────────────────────────
   const greeting = React.useMemo(() => {
     const hour = new Date().getHours();
-
-    if (hour < 12) {
-      return {
-        text: "Good morning",
-        icon: faSun,
-      };
-    }
-
-    if (hour < 17) {
-      return {
-        text: "Good afternoon",
-        icon: faCloudSun,
-      };
-    }
-
-    return {
-      text: "Good evening",
-      icon: faMoon,
-    };
+    if (hour < 12) return { text: "Good morning", icon: faSun };
+    if (hour < 17) return { text: "Good afternoon", icon: faCloudSun };
+    return { text: "Good evening", icon: faMoon };
   }, []);
 
-  // ── Nav menu state ─────────────────────────
+  // ── Nav menu state ────────────────────────
   const [navOpen, setNavOpen] = React.useState(false);
 
-  // ── Scroll-spy: update active category as user scrolls ──
+  // ── Scroll-spy ────────────────────────────
   const isManualScroll = React.useRef(false);
 
   React.useEffect(() => {
@@ -113,7 +101,6 @@ export default function Home() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (isManualScroll.current) return;
-        // Find the most visible section
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
@@ -131,13 +118,12 @@ export default function Home() {
   function handleCategoryChange(key: CategoryKey) {
     isManualScroll.current = true;
     setActiveCategory(key);
-    // Let the scroll settle, then re-enable scroll-spy
     setTimeout(() => {
       isManualScroll.current = false;
     }, 800);
   }
 
-  // ── Render ───────────────────────────────
+  // ── Render ────────────────────────────────
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar */}
@@ -162,7 +148,6 @@ export default function Home() {
 
           <div className="flex-1" />
 
-          {/* Menu icon */}
           <div className="relative">
             <button
               type="button"
@@ -179,12 +164,10 @@ export default function Home() {
 
             {navOpen && (
               <>
-                {/* Backdrop */}
                 <div
                   className="fixed inset-0 z-40"
                   onClick={() => setNavOpen(false)}
                 />
-                {/* Dropdown */}
                 <div className="absolute right-0 top-full mt-2 z-50 w-48 rounded-xl border bg-card shadow-lg p-2 space-y-1">
                   {[
                     { label: "Home", href: "/" },
@@ -206,7 +189,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Category chips + search */}
         <CategoryNav
           activeCategory={activeCategory}
           onCategoryChange={handleCategoryChange}
@@ -219,7 +201,7 @@ export default function Home() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6">
           {/* Menu grid */}
-          {!mounted ? (
+          {!mounted || catalogLoading ? (
             <MenuGridSkeleton />
           ) : (
             <MenuGrid
@@ -252,7 +234,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Floating cart button for mobile/tablet – opens Dialog modal */}
       {mounted && (
         <FloatingCartButton
           cart={cart}
@@ -264,7 +245,7 @@ export default function Home() {
         />
       )}
 
-      {/* Item customisation modal */}
+      {/* Item customisation sheet */}
       <ItemSheet
         item={openItem ?? null}
         open={openItemId !== null}
@@ -293,7 +274,6 @@ export default function Home() {
               sugarLevel,
               spiceLevel,
               itemNote,
-              quantity,
             );
             setOpenItemId(null);
           }

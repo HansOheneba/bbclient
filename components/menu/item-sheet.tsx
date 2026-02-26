@@ -25,12 +25,7 @@ import {
   isShawarma,
   type MenuItem,
 } from "@/lib/menu-data";
-import {
-  sugarLevels,
-  spiceLevels,
-  levelByValue,
-  type DiscreteLevel,
-} from "@/lib/levels";
+import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -59,16 +54,18 @@ function SheetImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+// ── All IDs are numbers now (matching the API) ────────────────────────────────
+
 type ItemSheetProps = {
   item: MenuItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOptionKey: string;
   onOptionChange: (key: string) => void;
-  freeToppingId: string | null;
-  onFreeToppingChange: (id: string | null) => void;
-  selectedToppings: string[];
-  onToppingsChange: (toppings: string[]) => void;
+  freeToppingId: number | null; // ← number
+  onFreeToppingChange: (id: number | null) => void; // ← number
+  selectedToppings: number[]; // ← number[]
+  onToppingsChange: (toppings: number[]) => void; // ← number[]
   sugarLevel: number;
   onSugarLevelChange: (level: number) => void;
   spiceLevel: number;
@@ -98,12 +95,11 @@ export default function ItemSheet({
 }: ItemSheetProps) {
   const [quantity, setQuantity] = React.useState(1);
 
-  // Reset quantity when sheet opens with a new item
   React.useEffect(() => {
     if (open) setQuantity(1);
   }, [open, item?.id]);
 
-  function togglePaidTopping(id: string) {
+  function togglePaidTopping(id: number) {
     onToppingsChange(
       selectedToppings.includes(id)
         ? selectedToppings.filter((x) => x !== id)
@@ -111,7 +107,7 @@ export default function ItemSheet({
     );
   }
 
-  function selectFreeTopping(id: string) {
+  function selectFreeTopping(id: number) {
     onFreeToppingChange(freeToppingId === id ? null : id);
   }
 
@@ -174,7 +170,6 @@ export default function ItemSheet({
 
   const prefersReducedMotion = usePrefersReducedMotion();
 
-  // Bottom-sheet slide animation (real sheet feel)
   const sheetMotion = prefersReducedMotion
     ? {}
     : {
@@ -185,7 +180,7 @@ export default function ItemSheet({
           transition: {
             duration: 0.28,
             ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
-          }, // easeOutCubic-ish
+          },
         },
         exit: {
           y: "100%",
@@ -199,15 +194,10 @@ export default function ItemSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* Keep Sheet in charge of overlay + focus-trap.
-          We animate the panel inside so we don’t fight Radix. */}
       <SheetContent
         side="bottom"
         className={cn(
-          // Let our own panel control sizing/rounded corners
           "p-0 border-0 bg-transparent shadow-none overflow-visible",
-
-          // On desktop: center the sheet container and keep the close button INSIDE by not constraining weirdly
           "sm:left-1/2 sm:-translate-x-1/2 sm:w-auto sm:max-w-none",
         )}
       >
@@ -217,18 +207,13 @@ export default function ItemSheet({
               key={item?.id ?? "item-modal"}
               {...sheetMotion}
               className={cn(
-                // This is the actual visible sheet panel
                 "relative mx-auto w-full bg-background border shadow-lg",
-
-                // Mobile bottom sheet: rounded top only + fixed height
                 "rounded-t-2xl h-[80vh] overflow-y-auto px-4 pb-6 pt-4",
-
-                // Desktop: more like a dialog card centered, not full height
                 "sm:rounded-2xl sm:h-auto sm:max-h-[85vh]",
                 "sm:w-140 sm:max-w-[calc(100vw-2rem)]",
               )}
             >
-              {/* Custom close button INSIDE the panel (so it never floats outside on desktop) */}
+              {/* Close button */}
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
@@ -242,13 +227,11 @@ export default function ItemSheet({
                   "focus:outline-none focus:ring-2 focus:ring-ring",
                 )}
               >
-                {/* simple X icon without extra deps */}
                 <span className="text-lg leading-none">×</span>
               </button>
 
               {item ? (
                 <>
-                  {/* Product image banner */}
                   {item.image && (
                     <SheetImage src={item.image} alt={item.name} />
                   )}
@@ -259,37 +242,37 @@ export default function ItemSheet({
                   </SheetHeader>
 
                   <div className="space-y-4 mt-4">
-                    {/* Options */}
-                    <div>
-                      <p className="text-sm font-medium mb-2">
-                        {item.options.length > 1 && isDrink(item)
-                          ? "Choose your size"
-                          : "Choose option"}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {item.options.map((o) => {
-                          const active = o.key === selectedOptionKey;
-                          return (
-                            <button
-                              key={o.key}
-                              type="button"
-                              onClick={() => onOptionChange(o.key)}
-                              className={cn(
-                                "rounded-full border px-4 py-2 text-sm font-medium transition",
-                                "focus:outline-none focus:ring-2 focus:ring-ring",
-                                active
-                                  ? "bg-foreground text-background border-foreground"
-                                  : "bg-card hover:bg-accent/20",
-                              )}
-                            >
-                              {o.label} • {formatGhs(o.priceGhs)}
-                            </button>
-                          );
-                        })}
+                    {/* Size options — only shown for shawarma (options.length > 0) */}
+                    {item.options.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">
+                          Choose your size
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {item.options.map((o) => {
+                            const active = o.key === selectedOptionKey;
+                            return (
+                              <button
+                                key={o.key}
+                                type="button"
+                                onClick={() => onOptionChange(o.key)}
+                                className={cn(
+                                  "rounded-full border px-4 py-2 text-sm font-medium transition",
+                                  "focus:outline-none focus:ring-2 focus:ring-ring",
+                                  active
+                                    ? "bg-foreground text-background border-foreground"
+                                    : "bg-card hover:bg-accent/20",
+                                )}
+                              >
+                                {o.label} • {formatGhs(o.priceGhs)}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Sugar level – drinks only */}
+                    {/* Sugar level — drinks only */}
                     {itemIsDrink && (
                       <div className="space-y-3">
                         <div className="flex items-baseline justify-between">
@@ -316,7 +299,6 @@ export default function ItemSheet({
 
                         <div className="grid grid-cols-5">
                           {sugarLevels.map((s, idx) => {
-                            // Opacity ramps up with each step
                             const opacity = 0.15 + (s.value / 4) * 0.85;
                             return (
                               <div
@@ -345,7 +327,7 @@ export default function ItemSheet({
                       </div>
                     )}
 
-                    {/* Spiciness – shawarma only */}
+                    {/* Spiciness — shawarma only */}
                     {itemIsShawarma && (
                       <div className="space-y-3">
                         <div className="flex items-baseline justify-between">
@@ -372,7 +354,6 @@ export default function ItemSheet({
 
                         <div className="grid grid-cols-5">
                           {spiceLevels.map((s, idx) => {
-                            // Deeper red as spice increases
                             const opacity = 0.15 + (s.value / 4) * 0.85;
                             return (
                               <div
@@ -407,7 +388,7 @@ export default function ItemSheet({
                       </div>
                     )}
 
-                    {/* Free topping – drinks only */}
+                    {/* Free topping — drinks only */}
                     {!itemIsShawarma && (
                       <div>
                         <p className="text-sm font-medium mb-1">
@@ -417,30 +398,32 @@ export default function ItemSheet({
                           Select one topping for free!
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {toppings.map((t) => {
-                            const active = freeToppingId === t.id;
-                            return (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => selectFreeTopping(t.id)}
-                                className={cn(
-                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                  "focus:outline-none focus:ring-2 focus:ring-ring",
-                                  active
-                                    ? "bg-green-600 text-white border-green-600"
-                                    : "bg-card hover:bg-accent/20",
-                                )}
-                              >
-                                {t.name} {active ? "• FREE" : ""}
-                              </button>
-                            );
-                          })}
+                          {toppings
+                            .filter((t) => t.inStock)
+                            .map((t) => {
+                              const active = freeToppingId === t.id;
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => selectFreeTopping(t.id)}
+                                  className={cn(
+                                    "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                    "focus:outline-none focus:ring-2 focus:ring-ring",
+                                    active
+                                      ? "bg-green-600 text-white border-green-600"
+                                      : "bg-card hover:bg-accent/20",
+                                  )}
+                                >
+                                  {t.name} {active ? "• FREE" : ""}
+                                </button>
+                              );
+                            })}
                         </div>
                       </div>
                     )}
 
-                    {/* Paid toppings – drinks only */}
+                    {/* Paid toppings — drinks only */}
                     {!itemIsShawarma && (
                       <div>
                         <p className="text-sm font-medium mb-1">
@@ -450,25 +433,27 @@ export default function ItemSheet({
                           Want more? Each extra topping is charged.
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {toppings.map((t) => {
-                            const active = selectedToppings.includes(t.id);
-                            return (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => togglePaidTopping(t.id)}
-                                className={cn(
-                                  "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                  "focus:outline-none focus:ring-2 focus:ring-ring",
-                                  active
-                                    ? "bg-foreground text-background border-foreground"
-                                    : "bg-card hover:bg-accent/20",
-                                )}
-                              >
-                                {t.name} (+{formatGhs(t.priceGhs)})
-                              </button>
-                            );
-                          })}
+                          {toppings
+                            .filter((t) => t.inStock)
+                            .map((t) => {
+                              const active = selectedToppings.includes(t.id);
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => togglePaidTopping(t.id)}
+                                  className={cn(
+                                    "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                                    "focus:outline-none focus:ring-2 focus:ring-ring",
+                                    active
+                                      ? "bg-foreground text-background border-foreground"
+                                      : "bg-card hover:bg-accent/20",
+                                  )}
+                                >
+                                  {t.name} (+{formatGhs(t.priceGhs)})
+                                </button>
+                              );
+                            })}
                         </div>
                       </div>
                     )}
@@ -493,7 +478,7 @@ export default function ItemSheet({
                       />
                     </div>
 
-                    {/* Footer row */}
+                    {/* Intent sentence */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         {(() => {
@@ -501,9 +486,11 @@ export default function ItemSheet({
                             (o) => o.key === selectedOptionKey,
                           );
 
-                          const freeName = freeToppingId
-                            ? toppings.find((t) => t.id === freeToppingId)?.name
-                            : null;
+                          const freeName =
+                            freeToppingId !== null
+                              ? toppings.find((t) => t.id === freeToppingId)
+                                  ?.name
+                              : null;
 
                           const paidNames = selectedToppings
                             .map(
@@ -557,8 +544,7 @@ export default function ItemSheet({
                           }
                           className={cn(
                             "inline-flex h-9 w-9 items-center justify-center rounded-full border text-lg font-medium transition",
-                            "focus:outline-none focus:ring-2 focus:ring-ring",
-                            "hover:bg-accent/20",
+                            "focus:outline-none focus:ring-2 focus:ring-ring hover:bg-accent/20",
                           )}
                         >
                           +
@@ -588,17 +574,13 @@ function usePrefersReducedMotion() {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onChange = () => setReduced(!!mq.matches);
-
     onChange();
-
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", onChange);
       return () => mq.removeEventListener("change", onChange);
     }
-
     mq.addListener(onChange);
     return () => mq.removeListener(onChange);
   }, []);

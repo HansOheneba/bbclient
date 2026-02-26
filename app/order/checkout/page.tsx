@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Tag,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,10 @@ export default function CheckoutPage() {
   // ── Local UI state ────────────────────────
   const [submitted, setSubmitted] = React.useState(false);
   const [orderId, setOrderId] = React.useState<string | null>(null);
+  const [apiOrderId, setApiOrderId] = React.useState<number | null>(null);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [loading, setLoading] = React.useState(false);
+  const [apiError, setApiError] = React.useState<string | null>(null);
 
   // Hydration guard for SSR
   const [hydrated, setHydrated] = React.useState(false);
@@ -82,12 +86,25 @@ export default function CheckoutPage() {
     return Object.keys(errs).length === 0;
   }
 
-  function handlePlaceOrder() {
+  async function handlePlaceOrder() {
     if (!validate()) return;
-    const order = placeOrder();
-    if (order) {
+
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      const order = await placeOrder();
       setOrderId(order.id);
+      setApiOrderId(order.apiOrderId);
       setSubmitted(true);
+    } catch (err) {
+      setApiError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -104,8 +121,13 @@ export default function CheckoutPage() {
             Your order has been received. We&apos;re starting preparation now.
           </p>
           <div className="rounded-2xl border bg-card p-4 text-left space-y-2">
-            <p className="text-sm text-muted-foreground">Order ID</p>
-            <p className="font-mono text-xs break-all">{orderId}</p>
+            <p className="text-sm text-muted-foreground">Order reference</p>
+            {apiOrderId != null ? (
+              <p className="font-mono text-sm font-semibold">#{apiOrderId}</p>
+            ) : null}
+            <p className="font-mono text-xs text-muted-foreground break-all">
+              {orderId}
+            </p>
           </div>
           <div className="flex flex-col gap-3">
             <Button asChild className="w-full rounded-2xl">
@@ -124,7 +146,6 @@ export default function CheckoutPage() {
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-background text-foreground">
-        {/* Skeleton header */}
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
           <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-xl" />
@@ -139,7 +160,6 @@ export default function CheckoutPage() {
 
         <main className="mx-auto max-w-6xl px-4 py-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-            {/* Left form skeleton */}
             <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-5">
               <Skeleton className="h-5 w-48 rounded" />
               <Skeleton className="h-4 w-64 rounded" />
@@ -153,7 +173,6 @@ export default function CheckoutPage() {
               <Skeleton className="h-10 w-full rounded-lg" />
             </section>
 
-            {/* Right summary skeleton */}
             <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-4">
               <Skeleton className="h-5 w-36 rounded" />
               <Separator />
@@ -223,7 +242,7 @@ export default function CheckoutPage() {
         </div>
       </header>
 
-      {/* Main layout: mobile = stacked, desktop = 2 columns like screenshot */}
+      {/* Main layout: mobile = stacked, desktop = 2 columns */}
       <main className="mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
           {/* LEFT: Form card */}
@@ -245,7 +264,7 @@ export default function CheckoutPage() {
 
               <Separator className="my-5" />
 
-              {/* Delivery method (pill buttons like screenshot) */}
+              {/* Delivery method */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Method</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -355,8 +374,8 @@ export default function CheckoutPage() {
                     )}
 
                     <p className="text-xs text-muted-foreground">
-                      Tip: choose a landmark and add a short note like “blue
-                      gate, opposite the pharmacy”.
+                      Tip: choose a landmark and add a short note like "blue
+                      gate, opposite the pharmacy".
                     </p>
                   </div>
                 )}
@@ -376,7 +395,7 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* RIGHT: Cart summary card (sticky on desktop like screenshot) */}
+          {/* RIGHT: Cart summary card */}
           <aside className="lg:sticky lg:top-20 h-fit">
             <section className="rounded-3xl border bg-card shadow-sm overflow-hidden">
               <div className="p-5 sm:p-6">
@@ -396,7 +415,6 @@ export default function CheckoutPage() {
                       .map((id) => toppings.find((t) => t.id === id)?.name)
                       .filter(Boolean) as string[];
 
-                    // Try common image keys without breaking types too hard.
                     const img =
                       (l as unknown as { image?: string }).image ??
                       (l as unknown as { itemImage?: string }).itemImage ??
@@ -407,7 +425,6 @@ export default function CheckoutPage() {
                         key={l.lineId}
                         className="flex items-start gap-3 rounded-2xl border bg-background p-3"
                       >
-                        {/* Item image */}
                         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
                           {img ? (
                             <Image
@@ -420,7 +437,6 @@ export default function CheckoutPage() {
                           ) : null}
                         </div>
 
-                        {/* Item text */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -436,7 +452,6 @@ export default function CheckoutPage() {
                             </p>
                           </div>
 
-                          {/* Extras */}
                           <div className="mt-2 space-y-1">
                             {freeTopping ? (
                               <p className="text-xs text-green-600">
@@ -468,7 +483,7 @@ export default function CheckoutPage() {
 
                             {l.note ? (
                               <p className="text-xs text-muted-foreground italic">
-                                “{l.note}”
+                                &ldquo;{l.note}&rdquo;
                               </p>
                             ) : null}
                           </div>
@@ -478,7 +493,7 @@ export default function CheckoutPage() {
                   })}
                 </div>
 
-                {/* Coupon-looking row (UI only, like screenshot) */}
+                {/* Coupon row (UI only) */}
                 <div className="mt-5 rounded-2xl border bg-background p-2 flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                     <Tag className="h-4 w-4 text-muted-foreground" />
@@ -507,17 +522,14 @@ export default function CheckoutPage() {
                     <span>{formatGhs(subtotal)}</span>
                   </div>
 
-                  {deliveryMethod === "delivery" ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Delivery</span>
-                      <span>{formatGhs(deliveryFee)}</span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Delivery</span>
-                      <span className="text-muted-foreground">Free</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Delivery</span>
+                    <span>
+                      {deliveryMethod === "delivery"
+                        ? formatGhs(deliveryFee)
+                        : "Free"}
+                    </span>
+                  </div>
 
                   <Separator />
 
@@ -526,6 +538,13 @@ export default function CheckoutPage() {
                     <span>{formatGhs(total)}</span>
                   </div>
                 </div>
+
+                {/* API error banner */}
+                {apiError ? (
+                  <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                ) : null}
 
                 {errors.cart ? (
                   <p className="mt-4 text-sm text-destructive text-center">
@@ -536,9 +555,17 @@ export default function CheckoutPage() {
                 <Button
                   type="button"
                   className="mt-5 w-full rounded-2xl py-6 text-base"
+                  disabled={loading}
                   onClick={handlePlaceOrder}
                 >
-                  Place order • {formatGhs(total)}
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Placing order…
+                    </>
+                  ) : (
+                    <>Place order • {formatGhs(total)}</>
+                  )}
                 </Button>
 
                 <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
@@ -551,7 +578,7 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* Mobile helper: quick back link */}
+            {/* Mobile: quick back link */}
             <div className="mt-4 lg:hidden">
               <Button
                 asChild
