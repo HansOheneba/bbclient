@@ -136,14 +136,37 @@ export const useCartStore = create<CartStore>()(
         }
 
         const trimmedNote = note.trim();
+        // Ensure we store a numeric product id. UI may sometimes pass a
+        // slug-like string (e.g. "shawarma-2") or a numeric-string; coerce
+        // to an integer so the backend receives an integer productId.
+        function resolveNumericId(rawId: unknown): number {
+          if (typeof rawId === "number") return rawId;
+          if (typeof rawId === "string") {
+            if (/^\d+$/.test(rawId)) return parseInt(rawId, 10);
+            const m = rawId.match(/-(\d+)$/);
+            if (m) return parseInt(m[1], 10);
+          }
+          throw new Error(`Unable to resolve numeric id from ${String(rawId)}`);
+        }
         const sugarVal = drink ? sugar : null;
         const spiceVal = shawarma ? spice : null;
         const finalFreeTopping = shawarma ? null : freeTopping;
         const finalToppingIds = shawarma ? [] : toppingIds;
 
+        let resolvedItemId: number;
+        try {
+          resolvedItemId = resolveNumericId((item as any).id);
+        } catch (err) {
+          // If resolution fails, fall back to using a random id to avoid
+          // crashing the UI — caller should ensure items come from the
+          // catalog with numeric ids.
+          console.error("Could not resolve numeric item id:", err);
+          resolvedItemId = Number.NaN;
+        }
+
         const signature = trimmedNote
           ? crypto.randomUUID()
-          : `${item.id}|${resolvedOptionKey}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}`;
+          : `${resolvedItemId}|${resolvedOptionKey}|${finalFreeTopping ?? ""}|${finalToppingIds.slice().sort().join(",")}|${sugarVal ?? ""}|${spiceVal ?? ""}`;
 
         set((state) => {
           const existing = state.cart.find(
@@ -164,7 +187,7 @@ export const useCartStore = create<CartStore>()(
 
           const line: CartLine = {
             lineId: crypto.randomUUID(),
-            itemId: item.id,
+            itemId: resolvedItemId,
             itemName: item.name,
             optionKey: resolvedOptionKey,
             optionLabel: resolvedOptionLabel,
@@ -290,7 +313,6 @@ export const useCartStore = create<CartStore>()(
 
           console.log("Order created:", order);
 
-      
           set((s) => ({
             orders: [order, ...s.orders],
             cart: [],
