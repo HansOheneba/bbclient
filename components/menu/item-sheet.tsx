@@ -399,32 +399,34 @@ export default function ItemSheet({
                           Pick one free topping.
                         </p>
 
-                        <select
-                          value={freeToppingValue}
-                          onChange={(e) =>
-                            onFreeToppingChange(
-                              e.target.value === "none"
-                                ? null
-                                : Number(e.target.value),
-                            )
-                          }
-                          className={cn(
-                            "h-11 rounded-2xl w-full text-sm",
-                            "border-border/60",
-                            "bg-card/70",
-                            "backdrop-blur-xl supports-[backdrop-filter]:bg-card/55",
-                            "shadow-sm",
-                            "focus:ring-2 focus:ring-ring",
-                            "px-3",
-                          )}
-                        >
-                          <option value="none">No topping</option>
-                          {freeToppingOptions.map((t) => (
-                            <option key={t.id} value={String(t.id)}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="w-fit">
+                          <select
+                            value={freeToppingValue}
+                            onChange={(e) =>
+                              onFreeToppingChange(
+                                e.target.value === "none"
+                                  ? null
+                                  : Number(e.target.value),
+                              )
+                            }
+                            className={cn(
+                              "h-11 rounded-2xl w-full text-sm",
+                              "border-border/60",
+                              "bg-card/70",
+                              "backdrop-blur-xl supports-[backdrop-filter]:bg-card/55",
+                              "shadow-sm",
+                              "focus:ring-2 focus:ring-ring",
+                              "px-3",
+                            )}
+                          >
+                            <option value="none">No topping</option>
+                            {freeToppingOptions.map((t) => (
+                              <option key={t.id} value={String(t.id)}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
                         <p className="text-[11px] text-muted-foreground">
                           If you change your mind, select “No topping”.
