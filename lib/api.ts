@@ -1,32 +1,33 @@
-/**
- * lib/api.ts  ← UPDATED with comprehensive logging
- */
-
 import type { CartLine } from "@/lib/menu-data";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-// Enable debug logging
 const DEBUG = true;
-
 function log(...args: any[]) {
-  if (DEBUG) {
-    console.log("[API]", ...args);
-  }
+  if (DEBUG) console.log("[API]", ...args);
 }
-
 function logError(...args: any[]) {
   console.error("[API ERROR]", ...args);
 }
 
 // ── Response shapes ──────────────────────────────────────────────────────────
 
-export interface PlaceOrderResponse {
+export interface CheckoutResponse {
   orderId: number;
-  status: string;
+  clientReference: string;
   totalGhs: number;
   totalPesewas: number;
+  checkoutUrl: string;
+  checkoutDirectUrl: string;
   message: string;
+}
+
+export interface OrderStatusResponse {
+  orderId: number;
+  status: string;
+  paymentStatus: string;
+  totalGhs: number;
+  createdAt: string;
 }
 
 export interface ApiError {
@@ -38,26 +39,19 @@ export interface ApiError {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function apiUrl(path: string) {
-  const url = `${BASE_URL}${path}`;
-  log(`Constructed URL: ${url} (from BASE_URL: "${BASE_URL}")`);
-  return url;
+  return `${BASE_URL}${path}`;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
   log(`Response status: ${res.status} ${res.statusText}`);
-  log(`Response headers:`, Object.fromEntries(res.headers.entries()));
 
   if (!res.ok) {
     let body: ApiError | null = null;
     let bodyText = "";
-
     try {
       bodyText = await res.text();
-      log(`Error response body:`, bodyText);
       body = JSON.parse(bodyText);
-    } catch {
-      log(`Could not parse error response as JSON`);
-    }
+    } catch {}
 
     const msg = Array.isArray(body?.message)
       ? body!.message.join(", ")
@@ -82,35 +76,14 @@ export interface PlaceOrderPayload {
 }
 
 /**
- * Maps the Zustand cart lines into the shape expected by CheckoutDto and
- * sends a POST /orders/checkout request.
+ * Initiates checkout — returns Hubtel checkout URLs + clientReference.
+ * No order is confirmed until payment completes via callback.
  */
 export async function placeOrderApi(
   payload: PlaceOrderPayload,
-): Promise<PlaceOrderResponse> {
+): Promise<CheckoutResponse> {
   log(`=== PLACE ORDER API CALL ===`);
-  log(`Payload received:`, {
-    phone: payload.phone,
-    locationText: payload.locationText,
-    notes: payload.notes,
-    itemCount: payload.items.length,
-  });
 
-  payload.items.forEach((item, index) => {
-    log(`Item ${index + 1}:`, {
-      itemId: item.itemId,
-      itemName: item.itemName,
-      variantId: item.variantId,
-      quantity: item.quantity,
-      freeToppingId: item.freeToppingId,
-      toppingIds: item.toppingIds,
-      sugarLevel: item.sugarLevel,
-      spiceLevel: item.spiceLevel,
-      note: item.note,
-    });
-  });
-
-  // Transform payload to match DTO
   const body = {
     phone: payload.phone,
     locationText: payload.locationText,
@@ -130,62 +103,56 @@ export async function placeOrderApi(
         ],
       };
 
-      if (hasVariant) {
-        itemBody.variantId = line.variantId;
-      }
-
-      if (line.sugarLevel !== null && line.sugarLevel !== undefined) {
+      if (hasVariant) itemBody.variantId = line.variantId;
+      if (line.sugarLevel !== null && line.sugarLevel !== undefined)
         itemBody.sugarLevel = String(line.sugarLevel);
-      }
-
-      if (line.spiceLevel !== null && line.spiceLevel !== undefined) {
+      if (line.spiceLevel !== null && line.spiceLevel !== undefined)
         itemBody.spiceLevel = String(line.spiceLevel);
-      }
-
-      if (line.note?.trim()) {
-        itemBody.note = line.note.trim();
-      }
+      if (line.note?.trim()) itemBody.note = line.note.trim();
 
       return itemBody;
     }),
   };
 
-  log(`Transformed request body:`, JSON.stringify(body, null, 2));
-
-  const url = apiUrl("/orders/checkout");
-  log(`Sending POST request to: ${url}`);
+  log(`Request body:`, JSON.stringify(body, null, 2));
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(apiUrl("/orders/checkout"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(body), // ← this was missing
+      body: JSON.stringify(body),
       mode: "cors",
       credentials: "omit",
     });
-
-    log(`Fetch completed, processing response...`);
-    return handleResponse<PlaceOrderResponse>(res);
+    return handleResponse<CheckoutResponse>(res);
   } catch (error) {
     logError(`Fetch failed:`, error);
-
     if (error instanceof TypeError && error.message === "Failed to fetch") {
-      if (!BASE_URL) {
-        throw new Error(
-          "API URL is not configured. Check NEXT_PUBLIC_API_URL in .env.local",
-        );
-      }
-
       throw new Error(
-        `Cannot connect to backend at ${BASE_URL}. ` +
-          `Make sure the server is running and CORS is enabled. ` +
-          `If developing locally, your backend should be on a different port (e.g., http://localhost:3001)`,
+        !BASE_URL
+          ? "API URL is not configured. Check NEXT_PUBLIC_API_URL in .env.local"
+          : `Cannot connect to backend at ${BASE_URL}.`,
       );
     }
-
     throw error;
   }
+}
+
+/**
+ * Polls the order status by clientReference.
+ * Frontend calls this every few seconds after the payment iframe opens.
+ */
+export async function getOrderStatusApi(
+  clientReference: string,
+): Promise<OrderStatusResponse> {
+  const res = await fetch(apiUrl(`/orders/${clientReference}/status`), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    mode: "cors",
+    credentials: "omit",
+  });
+  return handleResponse<OrderStatusResponse>(res);
 }

@@ -8,7 +8,7 @@ import {
   isShawarma,
 } from "@/lib/menu-data";
 import type { DeliveryLocationPayload } from "@/lib/location-types";
-import { placeOrderApi } from "@/lib/api";
+import { placeOrderApi, type CheckoutResponse } from "@/lib/api";
 
 // ── Order types ──────────────────────────────
 export type DeliveryMethod = "delivery" | "pickup";
@@ -21,8 +21,9 @@ export type OrderStatus =
   | "delivered";
 
 export type Order = {
-  id: string; // local UUID kept for de-duplication / history
-  apiOrderId: number | null; // real ID returned by the server
+  id: string;
+  apiOrderId: number | null;
+  clientReference: string | null; // ← Hubtel reference for status polling
   items: CartLine[];
   subtotal: number;
   deliveryFee: number;
@@ -88,12 +89,19 @@ type CartStore = {
   setDeliveryLocation: (v: DeliveryLocationPayload | null) => void;
 
   orders: Order[];
+
   /**
-   * Sends the cart to the API and, on success, clears the cart and saves the
-   * order to local history.  Returns the created Order (with apiOrderId set)
-   * or throws an Error if the API call fails.
+   * Calls POST /orders/checkout. On success returns the CheckoutResponse
+   * (including checkoutDirectUrl) but does NOT clear the cart yet —
+   * the cart is cleared only after payment is confirmed.
    */
-  placeOrder: () => Promise<Order>;
+  placeOrder: () => Promise<CheckoutResponse>;
+
+  /**
+   * Called after payment is confirmed (polling returns "paid").
+   * Saves order to history and clears the cart.
+   */
+  confirmOrder: (response: CheckoutResponse) => void;
 };
 
 export const useCartStore = create<CartStore>()(
@@ -131,14 +139,11 @@ export const useCartStore = create<CartStore>()(
           unitPriceGhs = option.priceGhs;
           resolvedOptionKey = option.key;
           resolvedOptionLabel = option.label;
-          // option.id is the DB variantId the backend needs
           resolvedVariantId = option.id;
         }
 
         const trimmedNote = note.trim();
-        // Ensure we store a numeric product id. UI may sometimes pass a
-        // slug-like string (e.g. "shawarma-2") or a numeric-string; coerce
-        // to an integer so the backend receives an integer productId.
+
         function resolveNumericId(rawId: unknown): number {
           if (typeof rawId === "number") return rawId;
           if (typeof rawId === "string") {
@@ -148,6 +153,7 @@ export const useCartStore = create<CartStore>()(
           }
           throw new Error(`Unable to resolve numeric id from ${String(rawId)}`);
         }
+
         const sugarVal = drink ? sugar : null;
         const spiceVal = shawarma ? spice : null;
         const finalFreeTopping = shawarma ? null : freeTopping;
@@ -157,9 +163,6 @@ export const useCartStore = create<CartStore>()(
         try {
           resolvedItemId = resolveNumericId((item as any).id);
         } catch (err) {
-          // If resolution fails, fall back to using a random id to avoid
-          // crashing the UI — caller should ensure items come from the
-          // catalog with numeric ids.
           console.error("Could not resolve numeric item id:", err);
           resolvedItemId = Number.NaN;
         }
@@ -191,7 +194,7 @@ export const useCartStore = create<CartStore>()(
             itemName: item.name,
             optionKey: resolvedOptionKey,
             optionLabel: resolvedOptionLabel,
-            variantId: resolvedVariantId, // ← new field
+            variantId: resolvedVariantId,
             unitPriceGhs,
             quantity,
             freeToppingId: finalFreeTopping,
@@ -247,89 +250,59 @@ export const useCartStore = create<CartStore>()(
       orders: [],
 
       placeOrder: async () => {
-        console.log("=== PLACE ORDER STORE ===");
         const state = get();
 
-        console.log("Current store state:", {
-          cartLength: state.cart.length,
-          customerName: state.customerName,
-          customerPhone: state.customerPhone,
-          deliveryMethod: state.deliveryMethod,
-          deliveryLocation: state.deliveryLocation,
-        });
-
-        if (state.cart.length === 0) {
-          console.error("Cart is empty");
-          throw new Error("Your cart is empty");
-        }
+        if (state.cart.length === 0) throw new Error("Your cart is empty");
 
         const locationText =
           state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
 
-        console.log("Location text for API:", locationText);
-        console.log(
-          "Cart items:",
-          state.cart.map((item) => ({
-            id: item.itemId,
-            name: item.itemName,
-            variant: item.variantId,
-            quantity: item.quantity,
-            toppings: item.toppingIds,
-            freeTopping: item.freeToppingId,
-          })),
-        );
+        const response = await placeOrderApi({
+          phone: state.customerPhone,
+          locationText,
+          notes: state.deliveryLocation?.notes ?? state.deliveryNote,
+          items: state.cart,
+        });
 
-        try {
-          console.log("Calling placeOrderApi...");
-          // Call the real API — throws on failure
-          const response = await placeOrderApi({
-            phone: state.customerPhone,
-            locationText,
-            notes: state.deliveryLocation?.notes ?? state.deliveryNote,
-            items: state.cart,
-          });
+        // Don't clear cart yet — wait for payment confirmation
+        return response;
+      },
 
-          console.log("API Response received:", response);
+      confirmOrder: (response: CheckoutResponse) => {
+        const state = get();
+        const subtotal = calcCartTotal(state.cart);
+        const deliveryFee = 0;
+        const locationText =
+          state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
 
-          const subtotal = calcCartTotal(state.cart);
-          const deliveryFee = state.deliveryMethod === "delivery" ? 10 : 0;
+        const order: Order = {
+          id: crypto.randomUUID(),
+          apiOrderId: response.orderId,
+          clientReference: response.clientReference,
+          items: [...state.cart],
+          subtotal,
+          deliveryFee,
+          total: subtotal + deliveryFee,
+          deliveryMethod: state.deliveryMethod,
+          customerName: state.customerName,
+          customerPhone: state.customerPhone,
+          deliveryAddress: locationText,
+          deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
+          deliveryLocation: state.deliveryLocation,
+          status: "confirmed",
+          createdAt: new Date().toISOString(),
+        };
 
-          const order: Order = {
-            id: crypto.randomUUID(), // local reference
-            apiOrderId: response.orderId, // real server ID
-            items: [...state.cart],
-            subtotal,
-            deliveryFee,
-            total: subtotal + deliveryFee,
-            deliveryMethod: state.deliveryMethod,
-            customerName: state.customerName,
-            customerPhone: state.customerPhone,
-            deliveryAddress: locationText,
-            deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
-            deliveryLocation: state.deliveryLocation,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-          };
-
-          console.log("Order created:", order);
-
-          set((s) => ({
-            orders: [order, ...s.orders],
-            cart: [],
-            customerName: "",
-            customerPhone: "",
-            deliveryAddress: "",
-            deliveryNote: "",
-            deliveryMethod: "delivery",
-            deliveryLocation: null,
-          }));
-
-          console.log("Store updated, cart cleared");
-          return order;
-        } catch (error) {
-          console.error("Place order failed:", error);
-          throw error;
-        }
+        set((s) => ({
+          orders: [order, ...s.orders],
+          cart: [],
+          customerName: "",
+          customerPhone: "",
+          deliveryAddress: "",
+          deliveryNote: "",
+          deliveryMethod: "delivery",
+          deliveryLocation: null,
+        }));
       },
     }),
     {

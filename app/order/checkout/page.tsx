@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   MapPin,
@@ -15,6 +14,7 @@ import {
   ShieldCheck,
   Tag,
   Loader2,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,15 +26,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatGhs, toppings } from "@/lib/menu-data";
 import { sugarLevels, spiceLevels, levelByValue } from "@/lib/levels";
 import { useCartStore, type DeliveryMethod } from "@/lib/store";
+import { getOrderStatusApi, type CheckoutResponse } from "@/lib/api";
 import LocationPicker from "@/components/location-picker";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export default function CheckoutPage() {
-  const router = useRouter();
+type Screen = "checkout" | "payment" | "success" | "failed";
 
+export default function CheckoutPage() {
   // ── Zustand state ─────────────────────────
   const cart = useCartStore((s) => s.cart);
   const cartCount = useCartStore((s) => s.cartCount);
@@ -51,14 +52,18 @@ export default function CheckoutPage() {
   const setDeliveryLocation = useCartStore((s) => s.setDeliveryLocation);
 
   const placeOrder = useCartStore((s) => s.placeOrder);
+  const confirmOrder = useCartStore((s) => s.confirmOrder);
 
   // ── Local UI state ────────────────────────
-  const [submitted, setSubmitted] = React.useState(false);
-  const [orderId, setOrderId] = React.useState<string | null>(null);
-  const [apiOrderId, setApiOrderId] = React.useState<number | null>(null);
+  const [screen, setScreen] = React.useState<Screen>("checkout");
+  const [checkoutData, setCheckoutData] =
+    React.useState<CheckoutResponse | null>(null);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
+  const [pollStatus, setPollStatus] = React.useState<string>(
+    "Waiting for payment…",
+  );
 
   // Hydration guard for SSR
   const [hydrated, setHydrated] = React.useState(false);
@@ -66,9 +71,46 @@ export default function CheckoutPage() {
 
   // ── Derived ───────────────────────────────
   const subtotal = hydrated ? cartTotal() : 0;
-  const deliveryFee = deliveryMethod === "delivery" ? 10 : 0;
+  const deliveryFee = 0;
   const total = subtotal + deliveryFee;
   const count = hydrated ? cartCount() : 0;
+
+  // ── Poll for payment status ───────────────
+  React.useEffect(() => {
+    if (screen !== "payment" || !checkoutData?.clientReference) return;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // 3 minutes at 3s intervals
+
+    const interval = setInterval(async () => {
+      attempts++;
+
+      try {
+        const status = await getOrderStatusApi(checkoutData.clientReference);
+
+        if (status.paymentStatus === "paid") {
+          clearInterval(interval);
+          confirmOrder(checkoutData);
+          setScreen("success");
+        } else if (status.paymentStatus === "failed") {
+          clearInterval(interval);
+          setScreen("failed");
+        }
+      } catch {
+        // Network hiccup — keep polling silently
+      }
+
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        setPollStatus(
+          "Payment timed out. Please contact us if you were charged.",
+        );
+        setScreen("failed");
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [screen, checkoutData, confirmOrder]);
 
   // ── Validation ────────────────────────────
   function validate(): boolean {
@@ -93,10 +135,9 @@ export default function CheckoutPage() {
     setApiError(null);
 
     try {
-      const order = await placeOrder();
-      setOrderId(order.id);
-      setApiOrderId(order.apiOrderId);
-      setSubmitted(true);
+      const response = await placeOrder();
+      setCheckoutData(response);
+      setScreen("payment");
     } catch (err) {
       setApiError(
         err instanceof Error
@@ -109,24 +150,25 @@ export default function CheckoutPage() {
   }
 
   // ── Success screen ────────────────────────
-  if (submitted && orderId) {
+  if (screen === "success" && checkoutData) {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="mx-auto w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold">Order placed!</h1>
+          <h1 className="text-2xl font-bold">Payment confirmed! 🫧</h1>
           <p className="text-muted-foreground">
-            Your order has been received. We&apos;re starting preparation now.
+            Your order has been received and we&apos;re starting preparation
+            now. You&apos;ll receive an SMS confirmation shortly.
           </p>
           <div className="rounded-2xl border bg-card p-4 text-left space-y-2">
             <p className="text-sm text-muted-foreground">Order reference</p>
-            {apiOrderId != null ? (
-              <p className="font-mono text-sm font-semibold">#{apiOrderId}</p>
-            ) : null}
+            <p className="font-mono text-sm font-semibold">
+              #{checkoutData.orderId}
+            </p>
             <p className="font-mono text-xs text-muted-foreground break-all">
-              {orderId}
+              {checkoutData.clientReference}
             </p>
           </div>
           <div className="flex flex-col gap-3">
@@ -136,6 +178,97 @@ export default function CheckoutPage() {
             <Button asChild variant="secondary" className="w-full rounded-2xl">
               <Link href="/">Back to home</Link>
             </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Failed screen ─────────────────────────
+  if (screen === "failed") {
+    return (
+      <div className="min-h-screen bg-black text-foreground flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 flex items-center justify-center">
+            <XCircle className="h-10 w-10 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold">Payment failed</h1>
+          <p className="text-muted-foreground">
+            {pollStatus !== "Waiting for payment…"
+              ? pollStatus
+              : "Your payment could not be completed. You have not been charged."}
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button
+              className="w-full rounded-2xl"
+              onClick={() => {
+                setScreen("checkout");
+                setCheckoutData(null);
+                setPollStatus("Waiting for payment…");
+                setApiError(null);
+              }}
+            >
+              Try again
+            </Button>
+            <Button asChild variant="secondary" className="w-full rounded-2xl">
+              <Link href="/order">Back to menu</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Payment iframe screen ─────────────────
+  if (screen === "payment" && checkoutData) {
+    return (
+      <div className="min-h-screen bg-black text-foreground flex flex-col items-center justify-start">
+        {/* Header */}
+        <div className="w-full max-w-2xl px-4 py-4 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => {
+              setScreen("checkout");
+              setCheckoutData(null);
+            }}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="font-semibold">Complete Payment</p>
+            <p className="text-xs text-muted-foreground">
+              GHS {checkoutData.totalGhs.toFixed(2)} · Order #
+              {checkoutData.orderId}
+            </p>
+          </div>
+        </div>
+
+        {/* Hubtel iframe */}
+        <div className="w-full max-w-2xl flex-1 px-4 pb-6">
+          <div
+            className="rounded-3xl overflow-hidden border bg-card shadow-lg w-full"
+            style={{ minHeight: "600px" }}
+          >
+            <iframe
+              src={checkoutData.checkoutDirectUrl}
+              className="w-full"
+              style={{ height: "660px", border: "none" }}
+              title="Hubtel Payment"
+              allow="payment"
+            />
+          </div>
+
+          {/* Polling status */}
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{pollStatus}</span>
+          </div>
+
+          <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground justify-center">
+            <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
+            <p>Secure payment powered by Hubtel. Do not close this page.</p>
           </div>
         </div>
       </div>
@@ -157,7 +290,6 @@ export default function CheckoutPage() {
             <Skeleton className="h-6 w-16 rounded-full" />
           </div>
         </header>
-
         <main className="mx-auto max-w-6xl px-4 py-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
             <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-5">
@@ -172,7 +304,6 @@ export default function CheckoutPage() {
               <Skeleton className="h-10 w-full rounded-lg" />
               <Skeleton className="h-10 w-full rounded-lg" />
             </section>
-
             <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-4">
               <Skeleton className="h-5 w-36 rounded" />
               <Separator />
@@ -203,7 +334,7 @@ export default function CheckoutPage() {
           <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground" />
           <h1 className="text-xl font-semibold">Your cart is empty</h1>
           <p className="text-muted-foreground text-sm">
-            Add some items before checking out.
+            Add some items to get started.
           </p>
           <Button asChild className="rounded-2xl">
             <Link href="/order">Browse menu</Link>
@@ -213,189 +344,143 @@ export default function CheckoutPage() {
     );
   }
 
+  // ── Main checkout form ────────────────────
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="rounded-xl border bg-card p-2 hover:bg-accent/20 transition"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-
+          <Button asChild variant="ghost" size="icon" className="rounded-xl">
+            <Link href="/order">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-5">Checkout</h1>
+            <p className="font-semibold leading-5">Checkout</p>
             <p className="text-xs text-muted-foreground">
-              Delivery or pick-up, then confirm your details.
+              {count} item{count !== 1 ? "s" : ""} · {formatGhs(total)}
             </p>
           </div>
-
           <div className="flex-1" />
-
           <Badge variant="secondary" className="rounded-full">
-            {count} item{count !== 1 ? "s" : ""}
+            {count}
           </Badge>
         </div>
       </header>
 
-      {/* Main layout: mobile = stacked, desktop = 2 columns */}
       <main className="mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-          {/* LEFT: Form card */}
-          <section className="rounded-3xl border bg-card shadow-sm">
-            <div className="p-5 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold">
-                    Shipping information
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Choose delivery method and add contact details.
+          {/* LEFT: Details form */}
+          <section className="rounded-3xl border bg-card shadow-sm p-5 sm:p-6 space-y-5">
+            <div>
+              <h2 className="text-base font-semibold">Your details</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                We&apos;ll use these to prepare and deliver your order.
+              </p>
+            </div>
+
+            <Separator />
+
+            {/* Delivery method toggle */}
+            <div className="flex gap-2">
+              {(["delivery", "pickup"] as DeliveryMethod[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDeliveryMethod(m)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors",
+                    deliveryMethod === m
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-foreground border-border hover:bg-muted",
+                  )}
+                >
+                  {m === "delivery" ? (
+                    <MapPin className="h-4 w-4" />
+                  ) : (
+                    <Store className="h-4 w-4" />
+                  )}
+                  {m === "delivery" ? "Delivery" : "Pick up"}
+                </button>
+              ))}
+            </div>
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <User className="h-4 w-4 text-muted-foreground" />
+                Name
+              </label>
+              <Input
+                placeholder="Your name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className={cn(
+                  "rounded-xl",
+                  errors.customerName && "border-destructive",
+                )}
+              />
+              {errors.customerName && (
+                <p className="text-xs text-destructive">
+                  {errors.customerName}
+                </p>
+              )}
+            </div>
+
+            {/* Phone */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                Phone
+              </label>
+              <Input
+                placeholder="0XX XXX XXXX"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                type="tel"
+                className={cn(
+                  "rounded-xl",
+                  errors.customerPhone && "border-destructive",
+                )}
+              />
+              {errors.customerPhone && (
+                <p className="text-xs text-destructive">
+                  {errors.customerPhone}
+                </p>
+              )}
+            </div>
+
+            {/* Location — only for delivery */}
+            {deliveryMethod === "delivery" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  Delivery location
+                </label>
+                <LocationPicker
+                  value={deliveryLocation}
+                  onChange={setDeliveryLocation}
+                />
+                {errors.deliveryLocation && (
+                  <p className="text-xs text-destructive">
+                    {errors.deliveryLocation}
                   </p>
-                </div>
-                <Badge variant="secondary" className="rounded-full">
-                  Step 1 of 2
-                </Badge>
-              </div>
-
-              <Separator className="my-5" />
-
-              {/* Delivery method */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Method</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {(
-                    [
-                      { key: "delivery", label: "Delivery", icon: MapPin },
-                      { key: "pickup", label: "Pick up", icon: Store },
-                    ] as const
-                  ).map(({ key, label, icon: Icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setDeliveryMethod(key as DeliveryMethod)}
-                      className={cn(
-                        "flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition",
-                        deliveryMethod === key
-                          ? "border-primary bg-primary/10"
-                          : "bg-background hover:bg-accent/10",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Contact details */}
-              <div className="mt-6 space-y-4">
-                <h3 className="text-sm font-semibold">Contact details</h3>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {/* Name */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      Full name
-                    </label>
-                    <Input
-                      className={cn(
-                        errors.customerName && "border-destructive",
-                      )}
-                      placeholder="e.g. Kwame Mensah"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                    />
-                    {errors.customerName && (
-                      <p className="text-xs text-destructive">
-                        {errors.customerName}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      Phone number
-                    </label>
-                    <Input
-                      className={cn(
-                        errors.customerPhone && "border-destructive",
-                      )}
-                      placeholder="e.g. 024 000 0000"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                    />
-                    {errors.customerPhone && (
-                      <p className="text-xs text-destructive">
-                        {errors.customerPhone}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Delivery address */}
-                {deliveryMethod === "delivery" && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        Delivery location
-                      </h3>
-                      {deliveryLocation?.label ? (
-                        <Badge variant="secondary" className="rounded-full">
-                          Selected
-                        </Badge>
-                      ) : null}
-                    </div>
-
-                    <div
-                      className={cn(
-                        "rounded-2xl border bg-background p-3",
-                        errors.deliveryLocation && "border-destructive",
-                      )}
-                    >
-                      <LocationPicker
-                        value={deliveryLocation}
-                        onChange={setDeliveryLocation}
-                      />
-                    </div>
-
-                    {errors.deliveryLocation && (
-                      <p className="text-xs text-destructive">
-                        {errors.deliveryLocation}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-muted-foreground">
-                      Tip: choose a landmark and add a short note like "blue
-                      gate, opposite the pharmacy".
-                    </p>
-                  </div>
                 )}
               </div>
+            )}
 
-              <Separator className="my-6" />
-
-              <div className="rounded-2xl bg-muted/40 p-4 flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium">Payment on delivery / pick-up</p>
-                  <p className="text-muted-foreground">
-                    You are confirming the order details only.
-                  </p>
-                </div>
+            {deliveryMethod === "pickup" && (
+              <div className="rounded-2xl border bg-muted/40 p-4 text-sm text-muted-foreground space-y-1">
+                <p className="font-medium text-foreground">Pickup location</p>
+                <p>Bubble Bliss Café — La, Accra</p>
+                <p className="text-xs">
+                  Your order will be ready in approximately 15–20 minutes.
+                </p>
               </div>
-            </div>
+            )}
           </section>
 
-          {/* RIGHT: Cart summary card */}
+          {/* RIGHT: Cart summary */}
           <aside className="lg:sticky lg:top-20 h-fit">
             <section className="rounded-3xl border bg-card shadow-sm overflow-hidden">
               <div className="p-5 sm:p-6">
@@ -458,13 +543,11 @@ export default function CheckoutPage() {
                                 Free: {freeTopping}
                               </p>
                             ) : null}
-
                             {paidToppingLabels.length > 0 ? (
                               <p className="text-xs text-muted-foreground">
                                 + {paidToppingLabels.join(", ")}
                               </p>
                             ) : null}
-
                             {l.sugarLevel !== null ? (
                               <p className="text-xs text-muted-foreground">
                                 Sugar:{" "}
@@ -472,7 +555,6 @@ export default function CheckoutPage() {
                                   ?.label ?? "Regular"}
                               </p>
                             ) : null}
-
                             {l.spiceLevel !== null && l.spiceLevel > 0 ? (
                               <p className="text-xs text-muted-foreground">
                                 Spice:{" "}
@@ -480,7 +562,6 @@ export default function CheckoutPage() {
                                   ?.label ?? "No spice"}
                               </p>
                             ) : null}
-
                             {l.note ? (
                               <p className="text-xs text-muted-foreground italic">
                                 &ldquo;{l.note}&rdquo;
@@ -522,17 +603,7 @@ export default function CheckoutPage() {
                     <span>{formatGhs(subtotal)}</span>
                   </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Delivery</span>
-                    <span>
-                      {deliveryMethod === "delivery"
-                        ? formatGhs(deliveryFee)
-                        : "Free"}
-                    </span>
-                  </div>
-
                   <Separator />
-
                   <div className="flex justify-between font-semibold text-base">
                     <span>Total</span>
                     <span>{formatGhs(total)}</span>
@@ -561,24 +632,23 @@ export default function CheckoutPage() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Placing order…
+                      Preparing payment…
                     </>
                   ) : (
-                    <>Place order • {formatGhs(total)}</>
+                    <>Pay • {formatGhs(total)}</>
                   )}
                 </Button>
 
                 <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                   <ShieldCheck className="h-4 w-4 mt-0.5" />
                   <p>
-                    Secure checkout. Your details are used only to prepare and
-                    deliver your order.
+                    Secure checkout powered by Hubtel. Your details are used
+                    only to prepare and deliver your order.
                   </p>
                 </div>
               </div>
             </section>
 
-            {/* Mobile: quick back link */}
             <div className="mt-4 lg:hidden">
               <Button
                 asChild
