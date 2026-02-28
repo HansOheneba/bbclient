@@ -18,13 +18,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// using native <select> instead of shadcn Select
 
 import {
   toppings,
@@ -405,40 +399,32 @@ export default function ItemSheet({
                           Pick one free topping.
                         </p>
 
-                        <Select
+                        <select
                           value={freeToppingValue}
-                          onValueChange={(v) =>
-                            onFreeToppingChange(v === "none" ? null : Number(v))
+                          onChange={(e) =>
+                            onFreeToppingChange(
+                              e.target.value === "none"
+                                ? null
+                                : Number(e.target.value),
+                            )
                           }
+                          className={cn(
+                            "h-11 rounded-2xl w-full text-sm",
+                            "border-border/60",
+                            "bg-card/70",
+                            "backdrop-blur-xl supports-[backdrop-filter]:bg-card/55",
+                            "shadow-sm",
+                            "focus:ring-2 focus:ring-ring",
+                            "px-3",
+                          )}
                         >
-                          <SelectTrigger
-                            className={cn(
-                              "h-11 rounded-2xl",
-                              "border-border/60",
-                              "bg-card/70",
-                              "backdrop-blur-xl supports-[backdrop-filter]:bg-card/55",
-                              "shadow-sm",
-                              "focus:ring-2 focus:ring-ring",
-                            )}
-                          >
-                            <SelectValue placeholder="Choose a topping" />
-                          </SelectTrigger>
-
-                          <SelectContent
-                            className={cn(
-                              "rounded-2xl border border-border/60",
-                              "bg-popover/70 backdrop-blur-xl supports-[backdrop-filter]:bg-popover/55",
-                              "shadow-xl overflow-hidden",
-                            )}
-                          >
-                            <SelectItem value="none">No topping</SelectItem>
-                            {freeToppingOptions.map((t) => (
-                              <SelectItem key={t.id} value={String(t.id)}>
-                                {t.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <option value="none">No topping</option>
+                          {freeToppingOptions.map((t) => (
+                            <option key={t.id} value={String(t.id)}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
 
                         <p className="text-[11px] text-muted-foreground">
                           If you change your mind, select “No topping”.
