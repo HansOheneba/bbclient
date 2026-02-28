@@ -19,6 +19,14 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
   toppings,
   formatGhs,
   isDrink,
@@ -54,18 +62,16 @@ function SheetImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-// ── All IDs are numbers now (matching the API) ────────────────────────────────
-
 type ItemSheetProps = {
   item: MenuItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOptionKey: string;
   onOptionChange: (key: string) => void;
-  freeToppingId: number | null; // ← number
-  onFreeToppingChange: (id: number | null) => void; // ← number
-  selectedToppings: number[]; // ← number[]
-  onToppingsChange: (toppings: number[]) => void; // ← number[]
+  freeToppingId: number | null;
+  onFreeToppingChange: (id: number | null) => void;
+  selectedToppings: number[];
+  onToppingsChange: (toppings: number[]) => void;
   sugarLevel: number;
   onSugarLevelChange: (level: number) => void;
   spiceLevel: number;
@@ -107,14 +113,14 @@ export default function ItemSheet({
     );
   }
 
-  function selectFreeTopping(id: number) {
-    onFreeToppingChange(freeToppingId === id ? null : id);
-  }
-
-  const itemIsDrink = item ? isDrink(item) : false;
   const itemIsShawarma = item ? isShawarma(item) : false;
+
+  // Important: sugar only for drinks, never for shawarma
+  const itemIsDrink = item ? isDrink(item) && !itemIsShawarma : false;
+
   const sugarMeta = levelByValue(sugarLevels, sugarLevel);
   const sugarLabel = sugarMeta?.label ?? "Regular";
+
   const spiceMeta = levelByValue(spiceLevels, spiceLevel);
   const spiceLabel = spiceMeta?.label ?? "No spice";
 
@@ -192,6 +198,10 @@ export default function ItemSheet({
         },
       };
 
+  const freeToppingValue =
+    freeToppingId === null ? "none" : String(freeToppingId);
+  const freeToppingOptions = toppings.filter((t) => t.inStock);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -213,7 +223,6 @@ export default function ItemSheet({
                 "sm:w-140 sm:max-w-[calc(100vw-2rem)]",
               )}
             >
-              {/* Close button */}
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
@@ -242,7 +251,6 @@ export default function ItemSheet({
                   </SheetHeader>
 
                   <div className="space-y-4 mt-4">
-                    {/* Size options — only shown for shawarma (options.length > 0) */}
                     {item.options.length > 0 && (
                       <div>
                         <p className="text-sm font-medium mb-2">
@@ -272,21 +280,21 @@ export default function ItemSheet({
                       </div>
                     )}
 
-                    {/* Sugar level — drinks only */}
+                    {/* Sugar level: drinks only, legend on top */}
                     {itemIsDrink && (
                       <div className="space-y-3">
-                        <div className="flex items-baseline justify-between">
+                        <div className="flex items-baseline justify-between gap-3">
                           <p className="text-sm font-medium">Sugar level</p>
-                          {sugarMeta && (
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium text-foreground">
-                                {sugarMeta.label}
-                              </span>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {sugarMeta?.label ?? "Regular"}
+                            </span>
+                            {sugarMeta?.sublabel ? (
                               <span className="ml-2 text-xs">
                                 {sugarMeta.sublabel}
                               </span>
-                            </p>
-                          )}
+                            ) : null}
+                          </p>
                         </div>
 
                         <Slider
@@ -297,18 +305,18 @@ export default function ItemSheet({
                           onValueChange={([v]) => onSugarLevelChange(v)}
                         />
 
-                        <div className="grid grid-cols-5">
-                          {sugarLevels.map((s, idx) => {
-                            const opacity = 0.15 + (s.value / 4) * 0.85;
+                        {/* Legends aligned under the track */}
+                        <div className="flex items-start justify-between">
+                          {sugarLevels.map((s) => {
+                            const opacity = 0.18 + (s.value / 4) * 0.82;
+                            const active = s.value === sugarLevel;
                             return (
                               <div
                                 key={s.value}
                                 className={cn(
-                                  "flex flex-col items-center gap-0.5 select-none",
-                                  idx === 0 && "items-start",
-                                  idx === sugarLevels.length - 1 && "items-end",
-                                  s.value === sugarLevel
-                                    ? "font-medium text-foreground"
+                                  "w-12 flex flex-col items-center gap-0.5 select-none",
+                                  active
+                                    ? "text-foreground"
                                     : "text-muted-foreground",
                                 )}
                               >
@@ -327,21 +335,21 @@ export default function ItemSheet({
                       </div>
                     )}
 
-                    {/* Spiciness — shawarma only */}
+                    {/* Spiciness: shawarma only, legend on top */}
                     {itemIsShawarma && (
                       <div className="space-y-3">
-                        <div className="flex items-baseline justify-between">
+                        <div className="flex items-baseline justify-between gap-3">
                           <p className="text-sm font-medium">Spiciness</p>
-                          {spiceMeta && (
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium text-foreground">
-                                {spiceMeta.label}
-                              </span>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {spiceMeta?.label ?? "No spice"}
+                            </span>
+                            {spiceMeta?.sublabel ? (
                               <span className="ml-2 text-xs">
                                 {spiceMeta.sublabel}
                               </span>
-                            </p>
-                          )}
+                            ) : null}
+                          </p>
                         </div>
 
                         <Slider
@@ -352,18 +360,17 @@ export default function ItemSheet({
                           onValueChange={([v]) => onSpiceLevelChange(v)}
                         />
 
-                        <div className="grid grid-cols-5">
-                          {spiceLevels.map((s, idx) => {
-                            const opacity = 0.15 + (s.value / 4) * 0.85;
+                        <div className="flex items-start justify-between">
+                          {spiceLevels.map((s) => {
+                            const opacity = 0.18 + (s.value / 4) * 0.82;
+                            const active = s.value === spiceLevel;
                             return (
                               <div
                                 key={s.value}
                                 className={cn(
-                                  "flex flex-col items-center gap-0.5 select-none",
-                                  idx === 0 && "items-start",
-                                  idx === spiceLevels.length - 1 && "items-end",
-                                  s.value === spiceLevel
-                                    ? "font-medium"
+                                  "w-12 flex flex-col items-center gap-0.5 select-none",
+                                  active
+                                    ? "text-foreground"
                                     : "text-muted-foreground",
                                 )}
                               >
@@ -388,49 +395,65 @@ export default function ItemSheet({
                       </div>
                     )}
 
-                    {/* Free topping — drinks only */}
+                    {/* Complimentary topping (dropdown) */}
                     {!itemIsShawarma && (
-                      <div>
-                        <p className="text-sm font-medium mb-1">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">
                           Complimentary topping
                         </p>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Select one topping for free!
+                        <p className="text-xs text-muted-foreground">
+                          Pick one free topping.
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {toppings
-                            .filter((t) => t.inStock)
-                            .map((t) => {
-                              const active = freeToppingId === t.id;
-                              return (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => selectFreeTopping(t.id)}
-                                  className={cn(
-                                    "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                                    "focus:outline-none focus:ring-2 focus:ring-ring",
-                                    active
-                                      ? "bg-green-600 text-white border-green-600"
-                                      : "bg-card hover:bg-accent/20",
-                                  )}
-                                >
-                                  {t.name} {active ? "• FREE" : ""}
-                                </button>
-                              );
-                            })}
-                        </div>
+
+                        <Select
+                          value={freeToppingValue}
+                          onValueChange={(v) =>
+                            onFreeToppingChange(v === "none" ? null : Number(v))
+                          }
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "h-11 rounded-2xl",
+                              "border-border/60",
+                              "bg-card/70",
+                              "backdrop-blur-xl supports-[backdrop-filter]:bg-card/55",
+                              "shadow-sm",
+                              "focus:ring-2 focus:ring-ring",
+                            )}
+                          >
+                            <SelectValue placeholder="Choose a topping" />
+                          </SelectTrigger>
+
+                          <SelectContent
+                            className={cn(
+                              "rounded-2xl border border-border/60",
+                              "bg-popover/70 backdrop-blur-xl supports-[backdrop-filter]:bg-popover/55",
+                              "shadow-xl overflow-hidden",
+                            )}
+                          >
+                            <SelectItem value="none">No topping</SelectItem>
+                            {freeToppingOptions.map((t) => (
+                              <SelectItem key={t.id} value={String(t.id)}>
+                                {t.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <p className="text-[11px] text-muted-foreground">
+                          If you change your mind, select “No topping”.
+                        </p>
                       </div>
                     )}
 
-                    {/* Paid toppings — drinks only */}
+                    {/* Paid toppings */}
                     {!itemIsShawarma && (
                       <div>
                         <p className="text-sm font-medium mb-1">
                           Additional toppings
                         </p>
                         <p className="text-xs text-muted-foreground mb-2">
-                          Want more? Each extra topping is charged.
+                          Each extra topping is charged.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {toppings
@@ -460,7 +483,6 @@ export default function ItemSheet({
 
                     <Separator />
 
-                    {/* Note */}
                     <div>
                       <label
                         htmlFor="item-note"
@@ -478,7 +500,6 @@ export default function ItemSheet({
                       />
                     </div>
 
-                    {/* Intent sentence */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         {(() => {
@@ -517,7 +538,6 @@ export default function ItemSheet({
                       </div>
                     </div>
 
-                    {/* Quantity + Add to cart */}
                     <div className="flex items-center justify-between gap-3 pt-1">
                       <div className="flex items-center gap-1">
                         <button
@@ -577,10 +597,12 @@ function usePrefersReducedMotion() {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onChange = () => setReduced(!!mq.matches);
     onChange();
+
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", onChange);
       return () => mq.removeEventListener("change", onChange);
     }
+
     mq.addListener(onChange);
     return () => mq.removeListener(onChange);
   }, []);

@@ -150,7 +150,7 @@ export default function LocationPicker({
           setQuery(data.label);
         } catch {
           setGeoError(
-            "Could not resolve your location. Try searching instead.",
+            "We could not resolve your location. Please search for a nearby place instead.",
           );
         } finally {
           setLocating(false);
@@ -209,7 +209,7 @@ export default function LocationPicker({
         ) : (
           <Navigation className="h-4 w-4" />
         )}
-        {locating ? "Getting location…" : "Use my location"}
+        {locating ? "Getting location…" : "Use my current location"}
       </Button>
 
       {geoError && <p className="text-xs text-destructive">{geoError}</p>}
@@ -219,7 +219,7 @@ export default function LocationPicker({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search for a landmark or area…"
+            placeholder="Search for an area, landmark, or nearby place…"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => {
@@ -271,7 +271,7 @@ export default function LocationPicker({
           <span className="text-muted-foreground font-normal">(optional)</span>
         </label>
         <Input
-          placeholder="e.g. Blue gate, opposite the pharmacy"
+          placeholder="Type a place that appears on the map (eg. a nearby landmark, school, junction)…"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -291,8 +291,10 @@ export default function LocationPicker({
             </p>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            Not specific enough? Add more details in the "Extra directions"
-            field above so our rider can find you.
+            Some areas in Accra do not show up clearly on the map. If your exact
+            spot is not listed, type a nearby landmark or place name we can
+            search on the map, then add a short direction (eg. “behind X”,
+            “opposite Y”).
           </p>
         </div>
       )}

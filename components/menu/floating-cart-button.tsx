@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ShoppingBag } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ShoppingBag, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import CartPanel from "@/components/menu/cart-panel";
-import { type CartLine } from "@/lib/menu-data";
+import { type CartLine, formatGhs } from "@/lib/menu-data";
 
 type FloatingCartButtonProps = {
   cart: CartLine[];
@@ -30,52 +29,54 @@ export default function FloatingCartButton({
   onRemove,
 }: FloatingCartButtonProps) {
   const [open, setOpen] = React.useState(false);
-  const [justAdded, setJustAdded] = React.useState(false);
-  const prevCount = React.useRef(cartCount);
 
-  // Trigger bubble animation when cart count increases
-  React.useEffect(() => {
-    if (cartCount > prevCount.current) {
-      setJustAdded(true);
-      const timer = setTimeout(() => setJustAdded(false), 600);
-      return () => clearTimeout(timer);
-    }
-    prevCount.current = cartCount;
-  }, [cartCount]);
+  if (cartCount <= 0) return null;
 
   return (
     <>
-      {/* Floating bubble button – visible only on mobile/tablet */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`
-          fixed bottom-6 right-6 z-50 md:hidden
-          flex items-center justify-center
-          h-14 w-14 rounded-full
-          bg-primary text-primary-foreground
-          shadow-lg shadow-primary/30
-          transition-transform duration-300
-          hover:scale-110 active:scale-95
-          bubble-float
-          ${justAdded ? "bubble-pop" : ""}
-        `}
-        aria-label="Open cart"
-      >
-        <ShoppingBag className="h-6 w-6" />
-
-        {/* Item count badge */}
-        {cartCount > 0 && (
-          <Badge
-            variant="default"
-            className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-[10px] font-bold flex items-center justify-center rounded-full bg-accent text-accent-foreground border-2 border-background"
+      {/* Minimal full-width bottom bar */}
+      <div className="fixed inset-x-0 bottom-0 z-50 md:hidden">
+        <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-2">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="
+              w-full
+              rounded-xl
+              bg-primary text-primary-foreground
+              border border-white/10
+              shadow-md
+              active:scale-[0.99]
+              transition-transform
+            "
+            aria-label="Open cart"
           >
-            {cartCount}
-          </Badge>
-        )}
-      </button>
+            <div className="flex items-center gap-3 px-4 py-3">
+              {/* Icon */}
+              <div className="h-9 w-9 rounded-lg bg-black/15 flex items-center justify-center">
+                <ShoppingBag className="h-4 w-4" />
+              </div>
 
-      {/* Modal dialog for cart */}
+              {/* Text */}
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium leading-4">
+                  {cartCount} item{cartCount !== 1 ? "s" : ""}
+                </p>
+                <p className="text-[11px] opacity-80">View cart</p>
+              </div>
+
+              {/* Price */}
+              <div className="text-sm font-semibold">
+                {formatGhs(cartTotal)}
+              </div>
+
+              <ChevronRight className="h-4 w-4 opacity-70" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Modal dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -93,6 +94,9 @@ export default function FloatingCartButton({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Spacer so content isn't hidden */}
+      <div className="md:hidden h-20" />
     </>
   );
 }
