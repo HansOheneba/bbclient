@@ -38,7 +38,7 @@ function cn(...classes: Array<string | false | null | undefined>) {
 type Screen = "checkout" | "payment" | "success" | "failed";
 
 // Design system tokens
-const pageBg = "bg-[#140f1f]";
+const pageBg = "bg-black";
 const topBar =
   "bg-[#24172f]/80 backdrop-blur-xl border-b border-white/10 supports-[backdrop-filter]:bg-[#24172f]/70";
 const card =
@@ -583,10 +583,7 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 rounded-full bg-white/6 border border-white/10 px-3 py-1.5">
-                <ShieldCheck className="h-4 w-4 text-white/70" />
-                <span className="text-xs text-white/70">Secure</span>
-              </div>
+         
             </div>
 
             <Separator className="bg-white/10" />

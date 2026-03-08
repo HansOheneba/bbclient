@@ -30,6 +30,9 @@ export default function Home() {
     React.useState<CategoryKey>("milk-tea");
   const [query, setQuery] = React.useState<string>("");
 
+  // ── Customer identity ─────────────────────
+  const customerName = useCartStore((s) => s.customerName);
+
   // ── Cart state (Zustand) ─────────────────
   const cart = useCartStore((s) => s.cart);
   const cartCount = useCartStore((s) => s.cartCount)();
@@ -147,6 +150,16 @@ const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
           </div>
 
           <div className="flex-1" />
+
+          {/* Welcome-back greeting — only shown when a name is saved */}
+          {mounted && customerName.trim() ? (
+            <div className="hidden sm:block text-right leading-tight mr-2">
+              <p className="text-xs text-muted-foreground">Welcome back</p>
+              <p className="text-sm font-semibold truncate max-w-35">
+                {customerName.trim()}
+              </p>
+            </div>
+          ) : null}
 
           <div className="relative">
             <button
