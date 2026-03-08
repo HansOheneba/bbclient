@@ -264,7 +264,10 @@ export const useCartStore = create<CartStore>()(
         }
 
         const locationText =
-          state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
+          state.deliveryMethod === "pickup"
+            ? "Pickup"
+            : state.deliveryLocation?.label?.trim() ||
+              state.deliveryAddress.trim();
 
         console.log("Location text for API:", locationText);
         console.log(
