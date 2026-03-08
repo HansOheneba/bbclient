@@ -162,7 +162,14 @@ export default function CheckoutPage() {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!customerName.trim()) errs.customerName = "Name is required";
-    if (!customerPhone.trim()) errs.customerPhone = "Phone number is required";
+
+    const rawPhone = customerPhone.replace(/[\s\-]/g, "");
+    if (!rawPhone) {
+      errs.customerPhone = "Phone number is required";
+    } else if (!/^(0\d{9}|233\d{9})$/.test(rawPhone)) {
+      errs.customerPhone = "Enter a valid Ghanaian number (e.g. 0244 123 456)";
+    }
+
     if (
       deliveryMethod === "delivery" &&
       (!deliveryLocation || !deliveryLocation.label.trim())

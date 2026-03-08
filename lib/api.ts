@@ -76,6 +76,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export interface PlaceOrderPayload {
   phone: string;
+  payeeName?: string;
   locationText: string;
   notes?: string;
   items: CartLine[];
@@ -92,6 +93,9 @@ export async function placeOrderApi(
 
   const body = {
     phone: payload.phone,
+    ...(payload.payeeName?.trim()
+      ? { payeeName: payload.payeeName.trim() }
+      : {}),
     locationText: payload.locationText,
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
     items: payload.items.map((line) => {

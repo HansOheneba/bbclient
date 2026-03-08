@@ -21,6 +21,18 @@ export async function POST(request: NextRequest) {
         { message: "phone is required" },
         { status: 400 },
       );
+
+    // Strip spaces/dashes then accept: 0XXXXXXXXX (10 digits) or 233XXXXXXXXX (12 digits)
+    const normalizedPhone = String(phone).replace(/[\s\-]/g, "");
+    if (!/^(0\d{9}|233\d{9})$/.test(normalizedPhone))
+      return NextResponse.json(
+        {
+          message:
+            "Please enter a valid Ghanaian phone number (e.g. 0244123456)",
+        },
+        { status: 400 },
+      );
+
     if (!locationText || typeof locationText !== "string")
       return NextResponse.json(
         { message: "locationText is required" },
@@ -169,10 +181,11 @@ export async function POST(request: NextRequest) {
 
     // ── Create Order ────────────────────────
     const [orderResult] = await conn.query<ResultSetHeader>(
-      `INSERT INTO orders (phone, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
-       VALUES (?, ?, ?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
+      `INSERT INTO orders (phone, customerName, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
       [
-        phone,
+        normalizedPhone,
+        payeeName?.trim() || null,
         locationText,
         notes?.trim() || null,
         totalPesewas,

@@ -279,6 +279,7 @@ export const useCartStore = create<CartStore>()(
           // Call the real API — throws on failure
           const response = await placeOrderApi({
             phone: state.customerPhone,
+            payeeName: state.customerName.trim() || undefined,
             locationText,
             notes: state.deliveryLocation?.notes ?? state.deliveryNote,
             items: state.cart,
@@ -320,11 +321,11 @@ export const useCartStore = create<CartStore>()(
 
         console.log("Order created:", order);
 
+        // Keep customerName and customerPhone so the user doesn't have to
+        // retype them on their next order.
         set((s) => ({
           orders: [order, ...s.orders],
           cart: [],
-          customerName: "",
-          customerPhone: "",
           deliveryAddress: "",
           deliveryNote: "",
           deliveryMethod: "delivery",
