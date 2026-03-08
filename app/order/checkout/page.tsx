@@ -38,13 +38,15 @@ function cn(...classes: Array<string | false | null | undefined>) {
 type Screen = "checkout" | "payment" | "success" | "failed";
 
 // Design system tokens
-const pageBg = "bg-gradient-to-br from-[#4A1942] via-[#2D1B3D] to-[#1A1625]";
-const topBar = "bg-[#2D1B3D]/95 backdrop-blur-md border-b border-white/10";
+const pageBg = "bg-[#140f1f]";
+const topBar =
+  "bg-[#24172f]/80 backdrop-blur-xl border-b border-white/10 supports-[backdrop-filter]:bg-[#24172f]/70";
 const card =
-  "rounded-[28px] border border-white/10 bg-gradient-to-br from-white/8 to-white/4 backdrop-blur-xl shadow-2xl";
-const surface = "rounded-2xl bg-white/5 border border-white/10";
-const mutedText = "text-white/70";
-const mutedText2 = "text-white/60";
+  "rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.11),rgba(255,255,255,0.05))] backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.35)]";
+const surface =
+  "rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur-md";
+const mutedText = "text-white/72";
+const mutedText2 = "text-white/55";
 
 export default function CheckoutPage() {
   // ── Zustand state ─────────────────────────
@@ -215,46 +217,58 @@ export default function CheckoutPage() {
   // ── Success screen ────────────────────────
   if (screen === "success" && checkoutData) {
     return (
-      <div
-        className={cn(
-          "min-h-screen flex items-center justify-center p-4",
-          pageBg,
-        )}
-      >
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/25">
-            <CheckCircle2 className="h-10 w-10 text-emerald-300" />
-          </div>
+      <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+          <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">Order confirmed 🫧</h1>
-            <p className={cn("text-sm", mutedText)}>
-              Your payment is completed and we are starting preparation. You
-              will receive an SMS confirmation shortly.
-            </p>
-          </div>
+        <div className="relative min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center space-y-6">
+            <div className="mx-auto w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/25 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+              <CheckCircle2 className="h-10 w-10 text-emerald-300" />
+            </div>
 
-          <div className={cn("p-4 text-left space-y-2", card)}>
-            <p className={cn("text-xs", mutedText2)}>Order reference</p>
-            <p className="font-mono text-sm font-semibold">
-              #{checkoutData.orderId}
-            </p>
-            <p className={cn("font-mono text-xs break-all", mutedText2)}>
-              {checkoutData.clientReference}
-            </p>
-          </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold tracking-tight text-white">
+                Order confirmed 🫧
+              </h1>
+              <p className={cn("text-sm", mutedText)}>
+                Your payment is completed and we are starting preparation. You
+                will receive an SMS confirmation shortly.
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-3">
-            <Button asChild className="w-full rounded-2xl h-12">
-              <Link href="/order">Order more</Link>
-            </Button>
-            <Button
-              asChild
-              variant="secondary"
-              className="w-full rounded-2xl h-12 bg-white/10 text-white hover:bg-white/15 border border-white/10"
-            >
-              <Link href="/">Back to home</Link>
-            </Button>
+            <div className={cn("p-5 text-left space-y-2", card)}>
+              <p
+                className={cn(
+                  "text-xs uppercase tracking-[0.18em]",
+                  mutedText2,
+                )}
+              >
+                Order reference
+              </p>
+              <p className="font-mono text-sm font-semibold text-white">
+                #{checkoutData.orderId}
+              </p>
+              <p className={cn("font-mono text-xs break-all", mutedText2)}>
+                {checkoutData.clientReference}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button asChild className="w-full rounded-2xl h-12 text-base">
+                <Link href="/order">Order more</Link>
+              </Button>
+              <Button
+                asChild
+                variant="secondary"
+                className="w-full rounded-2xl h-12 bg-white/10 text-white hover:bg-white/15 border border-white/10"
+              >
+                <Link href="/">Back to home</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -264,45 +278,50 @@ export default function CheckoutPage() {
   // ── Failed screen ─────────────────────────
   if (screen === "failed") {
     return (
-      <div
-        className={cn(
-          "min-h-screen flex items-center justify-center p-4",
-          pageBg,
-        )}
-      >
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-red-500/15 flex items-center justify-center border border-red-500/25">
-            <XCircle className="h-10 w-10 text-red-300" />
-          </div>
+      <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+          <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">Payment failed</h1>
-            <p className={cn("text-sm", mutedText)}>
-              {pollStatus !== "Waiting for payment…"
-                ? pollStatus
-                : "Your payment could not be completed. You have not been charged."}
-            </p>
-          </div>
+        <div className="relative min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center space-y-6">
+            <div className="mx-auto w-20 h-20 rounded-full bg-red-500/15 flex items-center justify-center border border-red-500/25 shadow-[0_0_30px_rgba(239,68,68,0.12)]">
+              <XCircle className="h-10 w-10 text-red-300" />
+            </div>
 
-          <div className="flex flex-col gap-3">
-            <Button
-              className="w-full rounded-2xl h-12"
-              onClick={() => {
-                setScreen("checkout");
-                setCheckoutData(null);
-                setPollStatus("Waiting for payment…");
-                setApiError(null);
-              }}
-            >
-              Try again
-            </Button>
-            <Button
-              asChild
-              variant="secondary"
-              className="w-full rounded-2xl h-12 bg-white/10 text-white hover:bg-white/15 border border-white/10"
-            >
-              <Link href="/order">Back to menu</Link>
-            </Button>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold tracking-tight text-white">
+                Payment failed
+              </h1>
+              <p className={cn("text-sm", mutedText)}>
+                {pollStatus !== "Waiting for payment…"
+                  ? pollStatus
+                  : "Your payment could not be completed. You have not been charged."}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button
+                className="w-full rounded-2xl h-12"
+                onClick={() => {
+                  setScreen("checkout");
+                  setCheckoutData(null);
+                  setPollStatus("Waiting for payment…");
+                  setApiError(null);
+                }}
+              >
+                Try again
+              </Button>
+              <Button
+                asChild
+                variant="secondary"
+                className="w-full rounded-2xl h-12 bg-white/10 text-white hover:bg-white/15 border border-white/10"
+              >
+                <Link href="/order">Back to menu</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -312,9 +331,15 @@ export default function CheckoutPage() {
   // ── Payment iframe screen ─────────────────
   if (screen === "payment" && checkoutData) {
     return (
-      <div className={cn("min-h-screen", pageBg)}>
+      <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+          <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        </div>
+
         {/* Header */}
-        <div className={cn("sticky top-0 z-40", topBar)}>
+        <div className={cn("sticky top-0 z-40 relative", topBar)}>
           <div className="mx-auto max-w-2xl px-4 py-4 flex items-center gap-3">
             <Button
               variant="ghost"
@@ -329,8 +354,10 @@ export default function CheckoutPage() {
             </Button>
 
             <div className="min-w-0">
-              <p className="font-semibold leading-5">Checkout</p>
-              <p className={cn("text-xs", mutedText)}>
+              <p className="text-lg font-semibold leading-5 text-white">
+                Checkout
+              </p>
+              <p className={cn("text-xs mt-1", mutedText)}>
                 GHS {checkoutData.totalGhs.toFixed(2)} · Order #
                 {checkoutData.orderId}
               </p>
@@ -338,27 +365,35 @@ export default function CheckoutPage() {
 
             <div className="flex-1" />
 
-            <Badge className="rounded-full bg-white/10 text-white border border-white/10">
+            <Badge className="rounded-full bg-white/10 text-white border border-white/10 px-3 py-1">
               Pay
             </Badge>
           </div>
         </div>
 
-        <main className="mx-auto max-w-2xl px-4 py-6">
+        <main className="relative mx-auto max-w-2xl px-4 py-6">
           <div className="space-y-4">
-            {/* Payment container that creates “padding illusion” around the white iframe */}
             <section className={cn("p-4 sm:p-5", card)}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-semibold">Complete payment</p>
+                  <p className="text-lg font-semibold text-white">
+                    Complete payment
+                  </p>
                   <p className={cn("text-sm mt-1", mutedText)}>
                     Keep this page open while the payment is processing.
                   </p>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <p className={cn("text-xs", mutedText2)}>Total</p>
-                  <p className="font-semibold">
+                  <p
+                    className={cn(
+                      "text-xs uppercase tracking-[0.14em]",
+                      mutedText2,
+                    )}
+                  >
+                    Total
+                  </p>
+                  <p className="font-semibold text-white">
                     GHS {checkoutData.totalGhs.toFixed(2)}
                   </p>
                 </div>
@@ -366,10 +401,8 @@ export default function CheckoutPage() {
 
               <Separator className="my-4 bg-white/10" />
 
-              {/* Outer pad to separate white iframe from dark UI */}
-              <div className="rounded-[22px] bg-white/6 border border-white/10 p-3 sm:p-4">
-                {/* Inner white “paper” frame */}
-                <div className="rounded-[18px] bg-white overflow-hidden shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
+              <div className="rounded-[24px] bg-white/6 border border-white/10 p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="rounded-[20px] bg-white overflow-hidden shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
                   <iframe
                     src={checkoutData.checkoutDirectUrl}
                     className="w-full"
@@ -380,7 +413,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Polling status */}
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-white/70">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>{pollStatus}</span>
@@ -411,10 +443,16 @@ export default function CheckoutPage() {
   // ── Loading / hydration ───────────────────
   if (!hydrated) {
     return (
-      <div className={cn("min-h-screen", pageBg)}>
-        <header className={cn("sticky top-0 z-40", topBar)}>
+      <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+          <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        </div>
+
+        <header className={cn("sticky top-0 z-40 relative", topBar)}>
           <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-xl bg-white/10" />
+            <Skeleton className="h-10 w-10 rounded-2xl bg-white/10" />
             <div className="min-w-0">
               <Skeleton className="h-5 w-24 rounded bg-white/10" />
               <Skeleton className="mt-1 h-3 w-48 rounded bg-white/10" />
@@ -423,26 +461,28 @@ export default function CheckoutPage() {
             <Skeleton className="h-6 w-16 rounded-full bg-white/10" />
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6">
+
+        <main className="relative mx-auto max-w-6xl px-4 py-6">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
             <section className={cn("p-5 sm:p-6 space-y-5", card)}>
               <Skeleton className="h-5 w-48 rounded bg-white/10" />
               <Skeleton className="h-4 w-64 rounded bg-white/10" />
               <Separator className="bg-white/10" />
               <div className="flex gap-3">
-                <Skeleton className="h-10 w-32 rounded-full bg-white/10" />
-                <Skeleton className="h-10 w-32 rounded-full bg-white/10" />
+                <Skeleton className="h-11 w-32 rounded-full bg-white/10" />
+                <Skeleton className="h-11 w-32 rounded-full bg-white/10" />
               </div>
-              <Skeleton className="h-10 w-full rounded-lg bg-white/10" />
-              <Skeleton className="h-10 w-full rounded-lg bg-white/10" />
-              <Skeleton className="h-10 w-full rounded-lg bg-white/10" />
+              <Skeleton className="h-12 w-full rounded-2xl bg-white/10" />
+              <Skeleton className="h-12 w-full rounded-2xl bg-white/10" />
+              <Skeleton className="h-12 w-full rounded-2xl bg-white/10" />
             </section>
+
             <section className={cn("p-5 sm:p-6 space-y-4", card)}>
               <Skeleton className="h-5 w-36 rounded bg-white/10" />
               <Separator className="bg-white/10" />
               {Array.from({ length: 2 }).map((_, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <Skeleton className="h-12 w-12 rounded-lg shrink-0 bg-white/10" />
+                  <Skeleton className="h-12 w-12 rounded-2xl shrink-0 bg-white/10" />
                   <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-2/3 rounded bg-white/10" />
                     <Skeleton className="h-3 w-1/2 rounded bg-white/10" />
@@ -451,7 +491,7 @@ export default function CheckoutPage() {
                 </div>
               ))}
               <Separator className="bg-white/10" />
-              <Skeleton className="h-10 w-full rounded-2xl bg-white/10" />
+              <Skeleton className="h-12 w-full rounded-2xl bg-white/10" />
             </section>
           </div>
         </main>
@@ -462,21 +502,28 @@ export default function CheckoutPage() {
   // ── Empty cart ────────────────────────────
   if (cart.length === 0) {
     return (
-      <div
-        className={cn(
-          "min-h-screen flex items-center justify-center p-4",
-          pageBg,
-        )}
-      >
-        <div className="max-w-md w-full text-center space-y-6">
-          <ShoppingBag className="mx-auto h-12 w-12 text-white/60" />
-          <h1 className="text-xl font-semibold">Your cart is empty</h1>
-          <p className="text-white/65 text-sm">
-            Add some items to get started.
-          </p>
-          <Button asChild className="rounded-2xl h-12">
-            <Link href="/order">Browse menu</Link>
-          </Button>
+      <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+          <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+          <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        </div>
+
+        <div className="relative min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center space-y-6">
+            <div className="mx-auto h-16 w-16 rounded-full bg-white/6 border border-white/10 flex items-center justify-center">
+              <ShoppingBag className="h-8 w-8 text-white/60" />
+            </div>
+            <h1 className="text-xl font-semibold text-white">
+              Your cart is empty
+            </h1>
+            <p className="text-white/65 text-sm">
+              Add some items to get started.
+            </p>
+            <Button asChild className="rounded-2xl h-12 px-6">
+              <Link href="/order">Browse menu</Link>
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -484,9 +531,15 @@ export default function CheckoutPage() {
 
   // ── Main checkout form ────────────────────
   return (
-    <div className={cn("min-h-screen", pageBg)}>
+    <div className={cn("min-h-screen relative overflow-hidden", pageBg)}>
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 left-[-80px] h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+        <div className="absolute top-1/3 right-[-100px] h-80 w-80 rounded-full bg-pink-400/10 blur-3xl" />
+        <div className="absolute bottom-[-120px] left-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className={cn("sticky top-0 z-40", topBar)}>
+      <header className={cn("sticky top-0 z-40 relative", topBar)}>
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
           <Button
             asChild
@@ -500,31 +553,36 @@ export default function CheckoutPage() {
           </Button>
 
           <div className="min-w-0">
-            <p className="font-semibold leading-5">Checkout</p>
-            <p className={cn("text-xs", mutedText)}>
+            <p className="text-lg font-semibold leading-5 text-white">
+              Checkout
+            </p>
+            <p className={cn("text-xs mt-1", mutedText)}>
               {count} item{count !== 1 ? "s" : ""} · {formatGhs(total)}
             </p>
           </div>
 
           <div className="flex-1" />
 
-          <Badge className="rounded-full bg-white/10 text-white border border-white/10">
+          <Badge className="rounded-full bg-white/10 text-white border border-white/10 px-3 py-1">
             {count}
           </Badge>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="relative mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
           {/* LEFT: Details form */}
-          <section className={cn("p-5 sm:p-6 space-y-5", card)}>
+          <section className={cn("p-5 sm:p-6 space-y-6", card)}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold">Your details</h2>
-                <p className={cn("text-sm mt-0.5", mutedText)}>
+                <h2 className="text-lg font-semibold tracking-tight text-white">
+                  Your details
+                </h2>
+                <p className={cn("text-sm mt-1", mutedText)}>
                   We use this info to prepare and deliver your order.
                 </p>
               </div>
+
               <div className="hidden sm:flex items-center gap-2 rounded-full bg-white/6 border border-white/10 px-3 py-1.5">
                 <ShieldCheck className="h-4 w-4 text-white/70" />
                 <span className="text-xs text-white/70">Secure</span>
@@ -543,10 +601,10 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => setDeliveryMethod(m)}
                     className={cn(
-                      "flex items-center justify-between gap-2 px-4 py-3 rounded-2xl text-sm font-medium border transition-colors",
+                      "flex items-center justify-between gap-2 px-4 py-3.5 rounded-2xl text-sm font-medium border transition-all duration-200",
                       active
-                        ? "bg-white text-black border-white"
-                        : "bg-white/5 text-white border-white/10 hover:bg-white/8",
+                        ? "bg-white text-black border-white shadow-[0_10px_25px_rgba(255,255,255,0.08)]"
+                        : "bg-white/5 text-white border-white/10 hover:bg-white/[0.08]",
                     )}
                   >
                     <span className="flex items-center gap-2">
@@ -579,7 +637,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Name */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1.5 text-white/90">
                 <User className="h-4 w-4 text-white/60" />
                 Name
@@ -589,7 +647,7 @@ export default function CheckoutPage() {
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 className={cn(
-                  "rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-white/35 focus-visible:ring-0 focus-visible:border-white/25",
+                  "h-12 rounded-2xl bg-white/[0.07] border border-white/12 text-white placeholder:text-white/35 focus-visible:ring-0 focus-visible:border-white/30 focus-visible:bg-white/[0.09]",
                   errors.customerName && "border-red-400/50",
                 )}
               />
@@ -599,7 +657,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Phone */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1.5 text-white/90">
                 <Phone className="h-4 w-4 text-white/60" />
                 Phone
@@ -607,10 +665,35 @@ export default function CheckoutPage() {
               <Input
                 placeholder="0XX XXX XXXX"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  const onlyDigits = e.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 12);
+                  setCustomerPhone(onlyDigits);
+                }}
+                onKeyDown={(e) => {
+                  const allowedKeys = [
+                    "Backspace",
+                    "Delete",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "Tab",
+                    "Home",
+                    "End",
+                  ];
+
+                  if (allowedKeys.includes(e.key) || /^[0-9]$/.test(e.key)) {
+                    return;
+                  }
+
+                  e.preventDefault();
+                }}
                 type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="tel"
                 className={cn(
-                  "rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-white/35 focus-visible:ring-0 focus-visible:border-white/25",
+                  "h-12 rounded-2xl bg-white/[0.07] border border-white/12 text-white placeholder:text-white/35 focus-visible:ring-0 focus-visible:border-white/30 focus-visible:bg-white/[0.09]",
                   errors.customerPhone && "border-red-400/50",
                 )}
               />
@@ -621,12 +704,12 @@ export default function CheckoutPage() {
 
             {/* Location — only for delivery */}
             {deliveryMethod === "delivery" ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-1.5 text-white/90">
                   <MapPin className="h-4 w-4 text-white/60" />
                   Delivery location
                 </label>
-                <div className={cn("p-3", surface)}>
+                <div className={cn("p-3.5", surface)}>
                   <LocationPicker
                     value={deliveryLocation}
                     onChange={setDeliveryLocation}
@@ -639,7 +722,7 @@ export default function CheckoutPage() {
                 ) : null}
               </div>
             ) : (
-              <div className={cn("p-4 text-sm space-y-1", surface)}>
+              <div className={cn("p-4 text-sm space-y-1.5", surface)}>
                 <p className="font-medium text-white">Pickup location</p>
                 <p className={cn("text-sm", mutedText)}>
                   Bubble Bliss Café, La, Accra
@@ -656,8 +739,10 @@ export default function CheckoutPage() {
             <section className={cn("overflow-hidden", card)}>
               <div className="p-5 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold">Order summary</h2>
-                  <Badge className="rounded-full bg-white/10 text-white border border-white/10">
+                  <h2 className="text-lg font-semibold tracking-tight text-white">
+                    Order summary
+                  </h2>
+                  <Badge className="rounded-full bg-white/10 text-white border border-white/10 px-3 py-1">
                     {count}
                   </Badge>
                 </div>
@@ -683,9 +768,9 @@ export default function CheckoutPage() {
                     return (
                       <div
                         key={l.lineId}
-                        className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/4 p-3"
+                        className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.05] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                       >
-                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white/10">
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[18px] bg-white/10 ring-1 ring-white/10">
                           {img ? (
                             <Image
                               src={img}
@@ -700,14 +785,14 @@ export default function CheckoutPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-5 truncate">
+                              <p className="text-sm font-semibold leading-5 truncate text-white">
                                 {l.itemName}
                               </p>
-                              <p className={cn("text-xs", mutedText2)}>
+                              <p className={cn("text-xs mt-0.5", mutedText2)}>
                                 {l.quantity}× {l.optionLabel}
                               </p>
                             </div>
-                            <p className="text-sm font-semibold whitespace-nowrap">
+                            <p className="text-sm font-semibold whitespace-nowrap text-white">
                               {formatGhs(l.unitPriceGhs * l.quantity)}
                             </p>
                           </div>
@@ -750,13 +835,13 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Coupon row (UI only) */}
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/4 p-2 flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10">
+                <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-2 flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
                     <Tag className="h-4 w-4 text-white/60" />
                   </div>
                   <Input
                     placeholder="Discount code"
-                    className="border-0 shadow-none focus-visible:ring-0 bg-transparent text-white placeholder:text-white/35"
+                    className="h-10 border-0 shadow-none focus-visible:ring-0 bg-transparent text-white placeholder:text-white/35"
                     disabled
                   />
                   <Button
@@ -772,17 +857,17 @@ export default function CheckoutPage() {
                 <Separator className="my-5 bg-white/10" />
 
                 {/* Totals */}
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className={mutedText}>Subtotal</span>
-                    <span>{formatGhs(subtotal)}</span>
+                    <span className="text-white">{formatGhs(subtotal)}</span>
                   </div>
 
                   <Separator className="bg-white/10" />
 
                   <div className="flex justify-between font-semibold text-base">
-                    <span>Total</span>
-                    <span>{formatGhs(total)}</span>
+                    <span className="text-white">Total</span>
+                    <span className="text-white">{formatGhs(total)}</span>
                   </div>
                 </div>
 
@@ -801,7 +886,7 @@ export default function CheckoutPage() {
 
                 <Button
                   type="button"
-                  className="mt-5 w-full rounded-2xl h-12 text-base"
+                  className="mt-5 w-full rounded-2xl h-12 text-base font-medium shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
                   disabled={loading}
                   onClick={handlePlaceOrder}
                 >
@@ -816,7 +901,7 @@ export default function CheckoutPage() {
                 </Button>
 
                 <div className="mt-4 flex items-start gap-2 text-xs text-white/60">
-                  <ShieldCheck className="h-4 w-4 mt-0.5" />
+                  <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
                   <p>
                     Secure checkout powered by Hubtel. Your details are used
                     only to prepare and deliver your order.
