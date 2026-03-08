@@ -11,42 +11,64 @@ import type { RowDataPacket } from "mysql2";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ClientReference, Status } = body;
 
-    if (!ClientReference) {
+    // Log the raw payload so we can inspect it in production if needed
+    console.log("[Callback] Raw Hubtel payload:", JSON.stringify(body));
+
+    // Hubtel sends:
+    // { ResponseCode, Status, Data: { ClientReference, Status, Amount, … } }
+    // ClientReference and the per-transaction Status live inside Data.
+    const data = body?.Data ?? body?.data ?? {};
+    const clientReference: string =
+      data.ClientReference ?? data.clientReference ?? "";
+    const rawStatus: string =
+      data.Status ?? data.status ?? body?.Status ?? body?.status ?? "";
+
+    if (!clientReference) {
+      console.warn("[Callback] Missing ClientReference in payload:", body);
       return NextResponse.json({ received: true });
     }
 
     // Find the order
     const [rows] = await pool.query<RowDataPacket[]>(
       "SELECT id, phone FROM orders WHERE clientReference = ?",
-      [ClientReference],
+      [clientReference],
     );
 
     if (rows.length === 0) {
-      console.warn(`Callback for unknown clientReference: ${ClientReference}`);
+      console.warn(`[Callback] Unknown clientReference: ${clientReference}`);
       return NextResponse.json({ received: true });
     }
 
     const order = rows[0];
-    const status = String(Status).toLowerCase();
+    const status = rawStatus.toLowerCase(); // "success" | "failed" | …
+
+    console.log(
+      `[Callback] order ${order.id} | clientRef ${clientReference} | status "${status}"`,
+    );
 
     if (status === "success") {
       await pool.query(
         "UPDATE orders SET paymentStatus = 'paid', status = 'preparing', updatedAt = NOW() WHERE id = ?",
         [order.id],
       );
+      console.log(`[Callback] Order ${order.id} marked as PAID / preparing`);
 
       // Send SMS (non-fatal)
       try {
         await sendOrderSms(order.phone);
       } catch (smsErr) {
-        console.error("SMS send failed (non-fatal):", smsErr);
+        console.error("[Callback] SMS send failed (non-fatal):", smsErr);
       }
     } else if (status === "failed") {
       await pool.query(
         "UPDATE orders SET paymentStatus = 'failed', updatedAt = NOW() WHERE id = ?",
         [order.id],
+      );
+      console.log(`[Callback] Order ${order.id} marked as FAILED`);
+    } else {
+      console.warn(
+        `[Callback] Unrecognised status "${status}" for order ${order.id}`,
       );
     }
 
