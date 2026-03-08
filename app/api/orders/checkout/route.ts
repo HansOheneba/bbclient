@@ -52,7 +52,15 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     for (const item of items) {
-      const { productId, variantId, quantity, toppings, sugarLevel, spiceLevel, note } = item;
+      const {
+        productId,
+        variantId,
+        quantity,
+        toppings,
+        sugarLevel,
+        spiceLevel,
+        note,
+      } = item;
 
       if (!productId || !quantity || quantity < 1) {
         await conn.rollback();
@@ -70,7 +78,9 @@ export async function POST(request: NextRequest) {
       if (prodRows.length === 0) {
         await conn.rollback();
         return NextResponse.json(
-          { message: `Product ${productId} not found, inactive, or out of stock` },
+          {
+            message: `Product ${productId} not found, inactive, or out of stock`,
+          },
           { status: 400 },
         );
       }
@@ -88,7 +98,9 @@ export async function POST(request: NextRequest) {
         if (varRows.length === 0) {
           await conn.rollback();
           return NextResponse.json(
-            { message: `Variant ${variantId} not found for product ${productId}` },
+            {
+              message: `Variant ${variantId} not found for product ${productId}`,
+            },
             { status: 400 },
           );
         }
@@ -121,7 +133,9 @@ export async function POST(request: NextRequest) {
           if (topRows.length === 0) {
             await conn.rollback();
             return NextResponse.json(
-              { message: `Topping ${toppingId} not found, inactive, or out of stock` },
+              {
+                message: `Topping ${toppingId} not found, inactive, or out of stock`,
+              },
               { status: 400 },
             );
           }
@@ -131,7 +145,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const toppingTotal = toppingsResolved.reduce((s, t) => s + t.priceApplied, 0);
+      const toppingTotal = toppingsResolved.reduce(
+        (s, t) => s + t.priceApplied,
+        0,
+      );
       const itemTotal = (unitPesewas + toppingTotal) * quantity;
       totalPesewas += itemTotal;
 
@@ -154,7 +171,13 @@ export async function POST(request: NextRequest) {
     const [orderResult] = await conn.query<ResultSetHeader>(
       `INSERT INTO \`Order\` (phone, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
        VALUES (?, ?, ?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
-      [phone, locationText, notes?.trim() || null, totalPesewas, clientReference],
+      [
+        phone,
+        locationText,
+        notes?.trim() || null,
+        totalPesewas,
+        clientReference,
+      ],
     );
     const orderId = orderResult.insertId;
 
@@ -205,7 +228,9 @@ export async function POST(request: NextRequest) {
       const hubtelMerchant = process.env.HUBTEL_MERCHANT_ACCOUNT;
 
       if (hubtelApiId && hubtelApiKey && hubtelMerchant) {
-        const auth = Buffer.from(`${hubtelApiId}:${hubtelApiKey}`).toString("base64");
+        const auth = Buffer.from(`${hubtelApiId}:${hubtelApiKey}`).toString(
+          "base64",
+        );
 
         const hubtelRes = await fetch(
           "https://payproxyapi.hubtel.com/items/initiate",

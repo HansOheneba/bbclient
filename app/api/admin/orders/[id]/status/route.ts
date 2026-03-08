@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verifyAdminToken } from "@/lib/auth";
 
-const VALID_STATUSES = ["pending", "preparing", "ready", "delivered", "cancelled"];
+const VALID_STATUSES = [
+  "pending",
+  "preparing",
+  "ready",
+  "delivered",
+  "cancelled",
+];
 
 /**
  * PATCH /api/admin/orders/[id]/status

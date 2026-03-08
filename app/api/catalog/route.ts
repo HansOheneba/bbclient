@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // ── Categories ────────────────────────────
     const [catRows] = await pool.query<RowDataPacket[]>(
-      "SELECT slug, name FROM Category ORDER BY sortOrder ASC",
+      "SELECT slug, name FROM categories ORDER BY sortOrder ASC",
     );
 
     // ── Products ──────────────────────────────
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
         p.id, p.slug, p.name, p.description, p.image, p.inStock,
         p.priceInPesewas, p.categoryId,
         c.slug AS categorySlug
-      FROM Product p
-      JOIN Category c ON c.id = p.categoryId
+      FROM products p
+      JOIN categories c ON c.id = p.categoryId
       WHERE p.isActive = 1
     `;
     const productParams: unknown[] = [];
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (productIds.length > 0) {
       const [variantRows] = await pool.query<RowDataPacket[]>(
         `SELECT id, productId, \`key\`, label, priceInPesewas
-         FROM ProductVariant
+         FROM product_variants
          WHERE productId IN (${productIds.map(() => "?").join(",")})
          ORDER BY sortOrder ASC`,
         productIds,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // ── Toppings ──────────────────────────────
     const [toppingRows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, name, priceInPesewas, inStock FROM Topping WHERE isActive = 1 ORDER BY sortOrder ASC",
+      "SELECT id, name, priceInPesewas, inStock FROM toppings WHERE isActive = 1 ORDER BY sortOrder ASC",
     );
 
     // ── Build response ────────────────────────

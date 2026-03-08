@@ -18,10 +18,7 @@ export async function GET(
     );
 
     if (rows.length === 0) {
-      return NextResponse.json(
-        { message: "Order not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
     const order = rows[0];

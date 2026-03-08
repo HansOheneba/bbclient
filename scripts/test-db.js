@@ -22,7 +22,9 @@ console.log(`  Host    : ${host}`);
 console.log(`  IP      : ${ip}`);
 console.log(`  Port    : ${process.env.DB_PORT}`);
 console.log(`  User    : ${user}`);
-console.log(`  Password: ${'*'.repeat(password ? password.length : 0)} (${password ? password.length : 0} chars)`);
+console.log(
+  `  Password: ${"*".repeat(password ? password.length : 0)} (${password ? password.length : 0} chars)`,
+);
 console.log(`  Database: ${database}`);
 console.log("─────────────────────────────────────────\n");
 
@@ -32,10 +34,25 @@ if (!password || password.length === 0) {
 
 const combos = [
   { label: "hostname, port 3306, no SSL ", host, port: 3306, ssl: undefined },
-  { label: "hostname, port 3306, +SSL   ", host, port: 3306, ssl: { rejectUnauthorized: false } },
+  {
+    label: "hostname, port 3306, +SSL   ",
+    host,
+    port: 3306,
+    ssl: { rejectUnauthorized: false },
+  },
   { label: "hostname, port 3307, no SSL ", host, port: 3307, ssl: undefined },
-  { label: "raw IP,   port 3306, no SSL ", host: ip, port: 3306, ssl: undefined },
-  { label: "raw IP,   port 3306, +SSL   ", host: ip, port: 3306, ssl: { rejectUnauthorized: false } },
+  {
+    label: "raw IP,   port 3306, no SSL ",
+    host: ip,
+    port: 3306,
+    ssl: undefined,
+  },
+  {
+    label: "raw IP,   port 3306, +SSL   ",
+    host: ip,
+    port: 3306,
+    ssl: { rejectUnauthorized: false },
+  },
 ];
 
 (async () => {
@@ -56,7 +73,9 @@ const combos = [
       const [rows] = await conn.query("SELECT DATABASE() AS db, NOW() AS ts");
       await conn.end();
       console.log(`✓ SUCCESS  (db: ${rows[0].db}, server time: ${rows[0].ts})`);
-      console.log(`\n✅ Working config → host: ${c.host}, port ${c.port}${c.ssl ? " + ssl: { rejectUnauthorized: false }" : ""}`);
+      console.log(
+        `\n✅ Working config → host: ${c.host}, port ${c.port}${c.ssl ? " + ssl: { rejectUnauthorized: false }" : ""}`,
+      );
       succeeded = true;
       break;
     } catch (e) {

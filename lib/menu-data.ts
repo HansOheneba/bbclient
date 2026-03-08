@@ -82,7 +82,7 @@ export async function fetchCatalog(
   const base =
     typeof window !== "undefined"
       ? ""
-      : process.env.NEXT_PUBLIC_API_URL ?? "";
+      : (process.env.NEXT_PUBLIC_API_URL ?? "");
 
   const url = category
     ? `${base}/api/catalog?category=${encodeURIComponent(category)}`
