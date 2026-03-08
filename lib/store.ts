@@ -23,6 +23,8 @@ export type OrderStatus =
 export type Order = {
   id: string; // local UUID kept for de-duplication / history
   apiOrderId: number | null; // real ID returned by the server
+  clientReference: string | null; // Hubtel reference
+  checkoutDirectUrl?: string; // Hubtel iframe URL
   items: CartLine[];
   subtotal: number;
   deliveryFee: number;
@@ -300,6 +302,8 @@ export const useCartStore = create<CartStore>()(
           const order: Order = {
             id: crypto.randomUUID(), // local reference
             apiOrderId: response.orderId, // real server ID
+            clientReference: response.clientReference ?? null,
+            checkoutDirectUrl: response.checkoutDirectUrl,
             items: [...state.cart],
             subtotal,
             deliveryFee,

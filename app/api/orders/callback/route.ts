@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Find the order
     const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, phone FROM `Order` WHERE clientReference = ?",
+      "SELECT id, phone FROM orders WHERE clientReference = ?",
       [ClientReference],
     );
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     if (status === "success") {
       await pool.query(
-        "UPDATE `Order` SET paymentStatus = 'paid', status = 'preparing', updatedAt = NOW() WHERE id = ?",
+        "UPDATE orders SET paymentStatus = 'paid', status = 'preparing', updatedAt = NOW() WHERE id = ?",
         [order.id],
       );
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (status === "failed") {
       await pool.query(
-        "UPDATE `Order` SET paymentStatus = 'failed', updatedAt = NOW() WHERE id = ?",
+        "UPDATE orders SET paymentStatus = 'failed', updatedAt = NOW() WHERE id = ?",
         [order.id],
       );
     }

@@ -13,7 +13,7 @@ export async function GET(
     const { clientReference } = await params;
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT status, paymentStatus, totalPesewas, createdAt FROM `Order` WHERE clientReference = ?",
+      "SELECT status, paymentStatus, totalPesewas, createdAt FROM orders WHERE clientReference = ?",
       [clientReference],
     );
 

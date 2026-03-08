@@ -23,10 +23,13 @@ function logError(...args: any[]) {
 
 export interface PlaceOrderResponse {
   orderId: number;
+  clientReference: string;
   status: string;
   totalGhs: number;
   totalPesewas: number;
   message: string;
+  checkoutUrl?: string;
+  checkoutDirectUrl?: string;
 }
 
 export interface ApiError {
