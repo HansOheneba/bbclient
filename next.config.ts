@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            // Allow pay.hubtel.com to be embedded in an iframe on this page
+            key: "Content-Security-Policy",
+            value: "frame-src 'self' https://pay.hubtel.com;",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

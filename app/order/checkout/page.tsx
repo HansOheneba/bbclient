@@ -100,13 +100,13 @@ export default function CheckoutPage() {
       try {
         const status = await getOrderStatusApi(checkoutData.clientReference);
 
-        if (status.paymentStatus === "paid" || status.status === "paid") {
+        if (status.paymentStatus === "paid" || status.status === "confirmed") {
           clearInterval(interval);
           confirmOrder(checkoutData);
           setScreen("success");
         } else if (
           status.paymentStatus === "failed" ||
-          status.status === "failed"
+          status.status === "cancelled"
         ) {
           clearInterval(interval);
           setScreen("failed");

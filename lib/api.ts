@@ -24,11 +24,14 @@ export interface CheckoutResponse {
 }
 
 export interface OrderStatusResponse {
+  orderId: number;
   clientReference: string;
-  status: string;
-  paymentStatus?: "pending" | "paid" | "failed";
-  orderId?: number;
-  message?: string;
+  /** Order lifecycle status from the backend */
+  status: "pending" | "confirmed" | "cancelled";
+  /** Payment status from Hubtel callback */
+  paymentStatus: "unpaid" | "paid" | "failed";
+  totalGhs: number;
+  createdAt: string;
 }
 
 export interface ApiError {
