@@ -4,6 +4,10 @@
     "mkdir": true,
     "mv": true,
     "npx shadcn@latest": true,
-    "npm install": true
+    "npm install": true,
+    "/^npx prisma init --datasource-provider mysql$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   }
 }

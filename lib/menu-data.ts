@@ -76,13 +76,19 @@ export interface CatalogResponse {
   toppings: Topping[];
 }
 
-export async function fetchCatalog(): Promise<CatalogResponse> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL is not set");
+export async function fetchCatalog(
+  category?: string,
+): Promise<CatalogResponse> {
+  const base =
+    typeof window !== "undefined"
+      ? ""
+      : process.env.NEXT_PUBLIC_API_URL ?? "";
 
-  const res = await fetch(`${apiUrl}/catalog`, {
-    next: { revalidate: 60 },
-  });
+  const url = category
+    ? `${base}/api/catalog?category=${encodeURIComponent(category)}`
+    : `${base}/api/catalog`;
+
+  const res = await fetch(url, { next: { revalidate: 60 } });
 
   if (!res.ok) throw new Error(`Catalog fetch failed: ${res.status}`);
 

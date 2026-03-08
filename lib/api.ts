@@ -4,7 +4,7 @@
 
 import type { CartLine } from "@/lib/menu-data";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE_URL = "";
 
 // Enable debug logging
 const DEBUG = true;
@@ -38,8 +38,8 @@ export interface ApiError {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function apiUrl(path: string) {
-  const url = `${BASE_URL}${path}`;
-  log(`Constructed URL: ${url} (from BASE_URL: "${BASE_URL}")`);
+  const url = `${BASE_URL}/api${path}`;
+  log(`Constructed URL: ${url}`);
   return url;
 }
 
