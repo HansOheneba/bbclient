@@ -15,6 +15,7 @@ import {
   Tag,
   Loader2,
   XCircle,
+  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,15 @@ function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 type Screen = "checkout" | "payment" | "success" | "failed";
+
+// Design system tokens
+const pageBg = "bg-gradient-to-br from-[#4A1942] via-[#2D1B3D] to-[#1A1625]";
+const topBar = "bg-[#2D1B3D]/95 backdrop-blur-md border-b border-white/10";
+const card =
+  "rounded-[28px] border border-white/10 bg-gradient-to-br from-white/8 to-white/4 backdrop-blur-xl shadow-2xl";
+const surface = "rounded-2xl bg-white/5 border border-white/10";
+const mutedText = "text-white/70";
+const mutedText2 = "text-white/60";
 
 export default function CheckoutPage() {
   // ── Zustand state ─────────────────────────
@@ -62,16 +72,7 @@ export default function CheckoutPage() {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
-
-  // Hubtel payment state
-  const [paymentPending, setPaymentPending] = React.useState(false);
-  const [checkoutDirectUrl, setCheckoutDirectUrl] = React.useState<
-    string | null
-  >(null);
-  const [clientReference, setClientReference] = React.useState<string | null>(
-    null,
-  );
-  const [paymentFailed, setPaymentFailed] = React.useState(false);
+  const [pollStatus, setPollStatus] = React.useState("Waiting for payment…");
 
   // Hydration guard for SSR
   const [hydrated, setHydrated] = React.useState(false);
@@ -99,11 +100,14 @@ export default function CheckoutPage() {
       try {
         const status = await getOrderStatusApi(checkoutData.clientReference);
 
-        if (status.paymentStatus === "paid") {
+        if (status.paymentStatus === "paid" || status.status === "paid") {
           clearInterval(interval);
           confirmOrder(checkoutData);
           setScreen("success");
-        } else if (status.paymentStatus === "failed") {
+        } else if (
+          status.paymentStatus === "failed" ||
+          status.status === "failed"
+        ) {
           clearInterval(interval);
           setScreen("failed");
         }
@@ -146,18 +150,16 @@ export default function CheckoutPage() {
     setApiError(null);
 
     try {
-      const order = await placeOrder();
-      setOrderId(order.id);
-      setApiOrderId(order.apiOrderId);
+      const response = await placeOrder();
+      setCheckoutData(response);
 
-      if (order.checkoutDirectUrl && order.clientReference) {
-        // Hubtel configured — show payment iframe
-        setCheckoutDirectUrl(order.checkoutDirectUrl);
-        setClientReference(order.clientReference);
-        setPaymentPending(true);
+      if (response.checkoutDirectUrl && response.clientReference) {
+        // Hubtel configured — move to payment screen
+        setScreen("payment");
       } else {
         // No Hubtel — go straight to success
-        setSubmitted(true);
+        confirmOrder(response);
+        setScreen("success");
       }
     } catch (err) {
       setApiError(
@@ -169,101 +171,6 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   }
-
-  // ── Hubtel payment iframe screen ─────────
-  if (paymentPending && checkoutDirectUrl) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background">
-        <div className="flex items-center gap-3 border-b px-4 py-3 bg-background/80 backdrop-blur">
-          <button
-            type="button"
-            onClick={() => {
-              setPaymentPending(false);
-              setCheckoutDirectUrl(null);
-            }}
-            className="rounded-xl border bg-card p-2 hover:bg-accent/20 transition"
-            aria-label="Cancel payment"
-          >
-            <XCircle className="h-5 w-5" />
-          </button>
-          <div>
-            <p className="text-sm font-semibold">Complete your payment</p>
-            <p className="text-xs text-muted-foreground">Secured by Hubtel</p>
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Waiting for payment…
-          </div>
-        </div>
-        <iframe
-          src={checkoutDirectUrl}
-          className="flex-1 w-full border-0"
-          allow="payment"
-          title="Hubtel Checkout"
-        />
-      </div>
-    );
-  }
-
-  // ── Payment failed screen ─────────────────
-  if (paymentFailed) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 flex items-center justify-center">
-            <XCircle className="h-10 w-10 text-destructive" />
-          </div>
-          <h1 className="text-2xl font-bold">Payment failed</h1>
-          <p className="text-muted-foreground">
-            Your payment was not completed. Your order has been cancelled.
-          </p>
-          <div className="flex flex-col gap-3">
-            <Button asChild className="w-full rounded-2xl">
-              <Link href="/order">Try again</Link>
-            </Button>
-            <Button asChild variant="secondary" className="w-full rounded-2xl">
-              <Link href="/">Back to home</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Poll for payment status ───────────────
-  React.useEffect(() => {
-    if (!paymentPending || !clientReference) return;
-
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/orders/${clientReference}/status`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-
-        if (data.paymentStatus === "paid") {
-          setPaymentPending(false);
-          setSubmitted(true);
-        } else if (data.paymentStatus === "failed") {
-          setPaymentPending(false);
-          setPaymentFailed(true);
-        }
-      } catch {
-        // ignore, keep polling
-      }
-    };
-
-    const interval = setInterval(poll, 3000);
-    poll(); // immediate first check
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [paymentPending, clientReference]);
 
   // ── Success screen ────────────────────────
   if (screen === "success" && checkoutData) {

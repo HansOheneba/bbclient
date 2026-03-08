@@ -284,8 +284,12 @@ export const useCartStore = create<CartStore>()(
             items: state.cart,
           });
 
-        // Don't clear cart yet — wait for payment confirmation
-        return response;
+          // Don't clear cart yet — wait for payment confirmation
+          return response;
+        } catch (error) {
+          console.error("Failed to place order:", error);
+          throw error;
+        }
       },
 
       confirmOrder: (response: CheckoutResponse) => {
@@ -295,26 +299,26 @@ export const useCartStore = create<CartStore>()(
         const locationText =
           state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
 
-          const order: Order = {
-            id: crypto.randomUUID(), // local reference
-            apiOrderId: response.orderId, // real server ID
-            clientReference: response.clientReference ?? null,
-            checkoutDirectUrl: response.checkoutDirectUrl,
-            items: [...state.cart],
-            subtotal,
-            deliveryFee,
-            total: subtotal + deliveryFee,
-            deliveryMethod: state.deliveryMethod,
-            customerName: state.customerName,
-            customerPhone: state.customerPhone,
-            deliveryAddress: locationText,
-            deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
-            deliveryLocation: state.deliveryLocation,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-          };
+        const order: Order = {
+          id: crypto.randomUUID(), // local reference
+          apiOrderId: response.orderId, // real server ID
+          clientReference: response.clientReference ?? null,
+          checkoutDirectUrl: response.checkoutDirectUrl,
+          items: [...state.cart],
+          subtotal,
+          deliveryFee,
+          total: subtotal + deliveryFee,
+          deliveryMethod: state.deliveryMethod,
+          customerName: state.customerName,
+          customerPhone: state.customerPhone,
+          deliveryAddress: locationText,
+          deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
+          deliveryLocation: state.deliveryLocation,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        };
 
-          console.log("Order created:", order);
+        console.log("Order created:", order);
 
         set((s) => ({
           orders: [order, ...s.orders],

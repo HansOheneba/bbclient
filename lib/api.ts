@@ -18,11 +18,17 @@ export interface CheckoutResponse {
   status: string;
   totalGhs: number;
   totalPesewas: number;
-  checkoutUrl: string;
-  checkoutDirectUrl: string;
   message: string;
   checkoutUrl?: string;
   checkoutDirectUrl?: string;
+}
+
+export interface OrderStatusResponse {
+  clientReference: string;
+  status: string;
+  paymentStatus?: "pending" | "paid" | "failed";
+  orderId?: number;
+  message?: string;
 }
 
 export interface ApiError {
