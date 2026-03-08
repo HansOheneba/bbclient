@@ -46,8 +46,8 @@ export default function Home() {
   const [openItemId, setOpenItemId] = React.useState<number | null>(null);
   const [selectedOptionKey, setSelectedOptionKey] =
     React.useState<string>("default");
-const [freeToppingId, setFreeToppingId] = React.useState<number | null>(null);
-const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
+  const [freeToppingId, setFreeToppingId] = React.useState<number | null>(null);
+  const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
   const [sugarLevel, setSugarLevel] = React.useState<number>(2);
   const [spiceLevel, setSpiceLevel] = React.useState<number>(2);
   const [itemNote, setItemNote] = React.useState<string>("");
@@ -87,6 +87,12 @@ const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
     if (hour < 17) return { text: "Good afternoon", icon: faCloudSun };
     return { text: "Good evening", icon: faMoon };
   }, []);
+
+  const firstName = React.useMemo(() => {
+    const trimmed = customerName.trim();
+    if (!trimmed) return "";
+    return trimmed.split(" ")[0] ?? "";
+  }, [customerName]);
 
   // ── Nav menu state ────────────────────────
   const [navOpen, setNavOpen] = React.useState(false);
@@ -132,21 +138,34 @@ const [selectedToppings, setSelectedToppings] = React.useState<number[]>([]);
       {/* Top Bar */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
-          <div className="leading-tight">
-            <p className="font-semibold flex items-center gap-2">
-              {mounted ? (
-                <FontAwesomeIcon
-                  icon={greeting.icon}
-                  className="text-[#fffff]"
-                />
-              ) : (
-                <span className="block h-5 w-5" aria-hidden="true" />
-              )}
-              {greeting.text}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              What are we getting today?
-            </p>
+          <div className="leading-tight min-w-0">
+            {/* Mobile greeting */}
+            <div className="sm:hidden">
+              <p className="font-semibold truncate">
+                {mounted && firstName ? `Hello, ${firstName}` : greeting.text}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                What are we getting today?
+              </p>
+            </div>
+
+            {/* Desktop greeting */}
+            <div className="hidden sm:block">
+              <p className="font-semibold flex items-center gap-2">
+                {mounted ? (
+                  <FontAwesomeIcon
+                    icon={greeting.icon}
+                    className="text-[#fffff]"
+                  />
+                ) : (
+                  <span className="block h-5 w-5" aria-hidden="true" />
+                )}
+                {greeting.text}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                What are we getting today?
+              </p>
+            </div>
           </div>
 
           <div className="flex-1" />
