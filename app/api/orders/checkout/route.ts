@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
       // Fetch product
       const [prodRows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM Product WHERE id = ? AND isActive = 1 AND inStock = 1",
+        "SELECT * FROM products WHERE id = ? AND isActive = 1 AND inStock = 1",
         [productId],
       );
       if (prodRows.length === 0) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
       if (variantId) {
         const [varRows] = await conn.query<RowDataPacket[]>(
-          "SELECT * FROM ProductVariant WHERE id = ? AND productId = ?",
+          "SELECT * FROM product_variants WHERE id = ? AND productId = ?",
           [variantId, productId],
         );
         if (varRows.length === 0) {
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         for (let i = 0; i < toppings.length; i++) {
           const { toppingId } = toppings[i];
           const [topRows] = await conn.query<RowDataPacket[]>(
-            "SELECT * FROM Topping WHERE id = ? AND isActive = 1 AND inStock = 1",
+            "SELECT * FROM toppings WHERE id = ? AND isActive = 1 AND inStock = 1",
             [toppingId],
           );
           if (topRows.length === 0) {
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     // ── Create Order ────────────────────────
     const [orderResult] = await conn.query<ResultSetHeader>(
-      `INSERT INTO \`Order\` (phone, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
+      `INSERT INTO orders (phone, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
        VALUES (?, ?, ?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
       [
         phone,
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     // ── Create OrderItems + OrderItemToppings ─
     for (const ri of resolvedItems) {
       const [itemResult] = await conn.query<ResultSetHeader>(
-        `INSERT INTO OrderItem (orderId, productId, variantId, productName, variantLabel, unitPesewas, quantity, sugarLevel, spiceLevel, note)
+        `INSERT INTO order_items (orderId, productId, variantId, productName, variantLabel, unitPesewas, quantity, sugarLevel, spiceLevel, note)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
 
       for (const tr of ri.toppingsResolved) {
         await conn.query(
-          `INSERT INTO OrderItemTopping (orderItemId, toppingId, toppingName, toppingBasePesewas, priceAppliedPesewas)
+          `INSERT INTO order_item_toppings (orderItemId, toppingId, toppingName, toppingBasePesewas, priceAppliedPesewas)
            VALUES (?, ?, ?, ?, ?)`,
           [
             orderItemId,
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
 
           // Save hubtel checkout id
           await pool.query(
-            "UPDATE `Order` SET hubtelCheckoutId = ? WHERE id = ?",
+            "UPDATE orders SET hubtelCheckoutId = ? WHERE id = ?",
             [hubtelJson.data.checkoutId, orderId],
           );
         } else {
