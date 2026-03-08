@@ -1,6 +1,6 @@
 import type { CartLine } from "@/lib/menu-data";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE_URL = "";
 
 const DEBUG = true;
 function log(...args: any[]) {
@@ -15,19 +15,14 @@ function logError(...args: any[]) {
 export interface CheckoutResponse {
   orderId: number;
   clientReference: string;
+  status: string;
   totalGhs: number;
   totalPesewas: number;
   checkoutUrl: string;
   checkoutDirectUrl: string;
   message: string;
-}
-
-export interface OrderStatusResponse {
-  orderId: number;
-  status: string;
-  paymentStatus: string;
-  totalGhs: number;
-  createdAt: string;
+  checkoutUrl?: string;
+  checkoutDirectUrl?: string;
 }
 
 export interface ApiError {
@@ -39,7 +34,9 @@ export interface ApiError {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function apiUrl(path: string) {
-  return `${BASE_URL}${path}`;
+  const url = `${BASE_URL}/api${path}`;
+  log(`Constructed URL: ${url}`);
+  return url;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {

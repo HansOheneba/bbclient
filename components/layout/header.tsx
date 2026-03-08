@@ -113,10 +113,9 @@ export default function GlassHeader({
   leftLabel = "OUR MENU",
   rightLabel = "OUR STORY",
   navItems = [
-    { label: "Our Menu", href: "/#menu" },
-    { label: "Order", href: "/#order" },
-    { label: "Our Story", href: "/#story" },
-    { label: "Contact", href: "/#contact" },
+    { label: "Home", href: "/" },
+    { label: "Menu", href: "/order" },
+    { label: "Our Story", href: "/story" },
   ],
   activeHref,
 }: HeaderProps) {

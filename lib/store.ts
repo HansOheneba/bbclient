@@ -21,9 +21,10 @@ export type OrderStatus =
   | "delivered";
 
 export type Order = {
-  id: string;
-  apiOrderId: number | null;
-  clientReference: string | null; // ← Hubtel reference for status polling
+  id: string; // local UUID kept for de-duplication / history
+  apiOrderId: number | null; // real ID returned by the server
+  clientReference: string | null; // Hubtel reference
+  checkoutDirectUrl?: string; // Hubtel iframe URL
   items: CartLine[];
   subtotal: number;
   deliveryFee: number;
@@ -255,14 +256,33 @@ export const useCartStore = create<CartStore>()(
         if (state.cart.length === 0) throw new Error("Your cart is empty");
 
         const locationText =
-          state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
+          state.deliveryMethod === "pickup"
+            ? "Pickup"
+            : state.deliveryLocation?.label?.trim() ||
+              state.deliveryAddress.trim();
 
-        const response = await placeOrderApi({
-          phone: state.customerPhone,
-          locationText,
-          notes: state.deliveryLocation?.notes ?? state.deliveryNote,
-          items: state.cart,
-        });
+        console.log("Location text for API:", locationText);
+        console.log(
+          "Cart items:",
+          state.cart.map((item) => ({
+            id: item.itemId,
+            name: item.itemName,
+            variant: item.variantId,
+            quantity: item.quantity,
+            toppings: item.toppingIds,
+            freeTopping: item.freeToppingId,
+          })),
+        );
+
+        try {
+          console.log("Calling placeOrderApi...");
+          // Call the real API — throws on failure
+          const response = await placeOrderApi({
+            phone: state.customerPhone,
+            locationText,
+            notes: state.deliveryLocation?.notes ?? state.deliveryNote,
+            items: state.cart,
+          });
 
         // Don't clear cart yet — wait for payment confirmation
         return response;
@@ -275,23 +295,26 @@ export const useCartStore = create<CartStore>()(
         const locationText =
           state.deliveryLocation?.label?.trim() || state.deliveryAddress.trim();
 
-        const order: Order = {
-          id: crypto.randomUUID(),
-          apiOrderId: response.orderId,
-          clientReference: response.clientReference,
-          items: [...state.cart],
-          subtotal,
-          deliveryFee,
-          total: subtotal + deliveryFee,
-          deliveryMethod: state.deliveryMethod,
-          customerName: state.customerName,
-          customerPhone: state.customerPhone,
-          deliveryAddress: locationText,
-          deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
-          deliveryLocation: state.deliveryLocation,
-          status: "confirmed",
-          createdAt: new Date().toISOString(),
-        };
+          const order: Order = {
+            id: crypto.randomUUID(), // local reference
+            apiOrderId: response.orderId, // real server ID
+            clientReference: response.clientReference ?? null,
+            checkoutDirectUrl: response.checkoutDirectUrl,
+            items: [...state.cart],
+            subtotal,
+            deliveryFee,
+            total: subtotal + deliveryFee,
+            deliveryMethod: state.deliveryMethod,
+            customerName: state.customerName,
+            customerPhone: state.customerPhone,
+            deliveryAddress: locationText,
+            deliveryNote: state.deliveryLocation?.notes ?? state.deliveryNote,
+            deliveryLocation: state.deliveryLocation,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          };
+
+          console.log("Order created:", order);
 
         set((s) => ({
           orders: [order, ...s.orders],

@@ -16,7 +16,7 @@ interface UseCatalogResult {
   error: string | null;
 }
 
-export function useCatalog(): UseCatalogResult {
+export function useCatalog(category?: string): UseCatalogResult {
   const [data, setData] = useState<CatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function useCatalog(): UseCatalogResult {
   useEffect(() => {
     let cancelled = false;
 
-    fetchCatalog()
+    fetchCatalog(category)
       .then((result) => {
         if (!cancelled) {
           setData(result);
@@ -41,7 +41,7 @@ export function useCatalog(): UseCatalogResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [category]);
 
   return {
     items: data?.items ?? [],

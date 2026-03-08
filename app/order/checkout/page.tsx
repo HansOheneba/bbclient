@@ -15,7 +15,6 @@ import {
   Tag,
   Loader2,
   XCircle,
-  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -63,9 +62,16 @@ export default function CheckoutPage() {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
-  const [pollStatus, setPollStatus] = React.useState<string>(
-    "Waiting for payment…",
+
+  // Hubtel payment state
+  const [paymentPending, setPaymentPending] = React.useState(false);
+  const [checkoutDirectUrl, setCheckoutDirectUrl] = React.useState<
+    string | null
+  >(null);
+  const [clientReference, setClientReference] = React.useState<string | null>(
+    null,
   );
+  const [paymentFailed, setPaymentFailed] = React.useState(false);
 
   // Hydration guard for SSR
   const [hydrated, setHydrated] = React.useState(false);
@@ -140,9 +146,19 @@ export default function CheckoutPage() {
     setApiError(null);
 
     try {
-      const response = await placeOrder();
-      setCheckoutData(response);
-      setScreen("payment");
+      const order = await placeOrder();
+      setOrderId(order.id);
+      setApiOrderId(order.apiOrderId);
+
+      if (order.checkoutDirectUrl && order.clientReference) {
+        // Hubtel configured — show payment iframe
+        setCheckoutDirectUrl(order.checkoutDirectUrl);
+        setClientReference(order.clientReference);
+        setPaymentPending(true);
+      } else {
+        // No Hubtel — go straight to success
+        setSubmitted(true);
+      }
     } catch (err) {
       setApiError(
         err instanceof Error
@@ -154,17 +170,100 @@ export default function CheckoutPage() {
     }
   }
 
-  // ── Theme helpers (dark, app-like) ─────────
-  const pageBg =
-    "bg-gradient-to-b from-[#0B0F17] via-[#070A10] to-[#05060B] text-white";
-  const topBar =
-    "border-b border-white/10 bg-black/35 backdrop-blur supports-[backdrop-filter]:bg-black/25";
-  const card =
-    "rounded-[26px] border border-white/10 bg-white/5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]";
-  const surface =
-    "rounded-[22px] border border-white/10 bg-white/4 hover:bg-white/6 transition-colors";
-  const mutedText = "text-white/65";
-  const mutedText2 = "text-white/55";
+  // ── Hubtel payment iframe screen ─────────
+  if (paymentPending && checkoutDirectUrl) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div className="flex items-center gap-3 border-b px-4 py-3 bg-background/80 backdrop-blur">
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentPending(false);
+              setCheckoutDirectUrl(null);
+            }}
+            className="rounded-xl border bg-card p-2 hover:bg-accent/20 transition"
+            aria-label="Cancel payment"
+          >
+            <XCircle className="h-5 w-5" />
+          </button>
+          <div>
+            <p className="text-sm font-semibold">Complete your payment</p>
+            <p className="text-xs text-muted-foreground">Secured by Hubtel</p>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Waiting for payment…
+          </div>
+        </div>
+        <iframe
+          src={checkoutDirectUrl}
+          className="flex-1 w-full border-0"
+          allow="payment"
+          title="Hubtel Checkout"
+        />
+      </div>
+    );
+  }
+
+  // ── Payment failed screen ─────────────────
+  if (paymentFailed) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-full bg-destructive/15 flex items-center justify-center">
+            <XCircle className="h-10 w-10 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold">Payment failed</h1>
+          <p className="text-muted-foreground">
+            Your payment was not completed. Your order has been cancelled.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Button asChild className="w-full rounded-2xl">
+              <Link href="/order">Try again</Link>
+            </Button>
+            <Button asChild variant="secondary" className="w-full rounded-2xl">
+              <Link href="/">Back to home</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Poll for payment status ───────────────
+  React.useEffect(() => {
+    if (!paymentPending || !clientReference) return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/orders/${clientReference}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.paymentStatus === "paid") {
+          setPaymentPending(false);
+          setSubmitted(true);
+        } else if (data.paymentStatus === "failed") {
+          setPaymentPending(false);
+          setPaymentFailed(true);
+        }
+      } catch {
+        // ignore, keep polling
+      }
+    };
+
+    const interval = setInterval(poll, 3000);
+    poll(); // immediate first check
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [paymentPending, clientReference]);
 
   // ── Success screen ────────────────────────
   if (screen === "success" && checkoutData) {
