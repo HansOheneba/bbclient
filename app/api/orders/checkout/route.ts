@@ -218,6 +218,23 @@ export async function POST(request: NextRequest) {
 
     await conn.commit();
 
+    // ── Derive base URL from request ─────────
+    const proto =
+      request.headers.get("x-forwarded-proto") ??
+      (request.url.startsWith("https") ? "https" : "http");
+    const host = request.headers.get("host") ?? "localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? `${proto}://${host}`;
+
+    // Construct Hubtel callback/return/cancel URLs.
+    // callbackUrl is mandatory — derive from the live hostname if env var absent.
+    const callbackUrl =
+      process.env.HUBTEL_CALLBACK_URL ?? `${baseUrl}/api/orders/callback`;
+
+    // Return / cancel URLs include clientReference so the landing pages know
+    // which order to display and can postMessage back to the checkout iframe.
+    const returnUrl = `${baseUrl}/payment/success?ref=${clientReference}`;
+    const cancelUrl = `${baseUrl}/payment/cancelled?ref=${clientReference}`;
+
     // ── Hubtel Checkout ─────────────────────
     let checkoutUrl: string | undefined;
     let checkoutDirectUrl: string | undefined;
@@ -232,6 +249,27 @@ export async function POST(request: NextRequest) {
           "base64",
         );
 
+        const hubtelPayload = {
+          totalAmount: totalPesewas / 100,
+          description: "Bubble Bliss Order",
+          callbackUrl,
+          returnUrl,
+          cancellationUrl: cancelUrl,
+          merchantAccountNumber: hubtelMerchant,
+          clientReference,
+          ...(payeeName ? { payeeName } : {}),
+          ...(payeeEmail ? { payeeEmail } : {}),
+        };
+
+        console.log(
+          "[Hubtel] Initiating checkout for",
+          clientReference,
+          "| callbackUrl:",
+          callbackUrl,
+          "| returnUrl:",
+          returnUrl,
+        );
+
         const hubtelRes = await fetch(
           "https://payproxyapi.hubtel.com/items/initiate",
           {
@@ -240,37 +278,32 @@ export async function POST(request: NextRequest) {
               "Content-Type": "application/json",
               Authorization: `Basic ${auth}`,
             },
-            body: JSON.stringify({
-              totalAmount: totalPesewas / 100,
-              description: "Bubble Bliss Order",
-              callbackUrl: process.env.HUBTEL_CALLBACK_URL,
-              returnUrl: process.env.HUBTEL_RETURN_URL,
-              cancellationUrl: process.env.HUBTEL_CANCEL_URL,
-              merchantAccountNumber: hubtelMerchant,
-              clientReference,
-              ...(payeeName ? { payeeName } : {}),
-              ...(payeeEmail ? { payeeEmail } : {}),
-            }),
+            body: JSON.stringify(hubtelPayload),
           },
         );
 
         const hubtelJson = await hubtelRes.json();
+        console.log("[Hubtel] Response:", JSON.stringify(hubtelJson));
 
         if (hubtelJson.responseCode === "0000" && hubtelJson.data) {
           checkoutUrl = hubtelJson.data.checkoutUrl;
           checkoutDirectUrl = hubtelJson.data.checkoutDirectUrl;
 
-          // Save hubtel checkout id
+          // Persist hubtel checkout id
           await pool.query(
             "UPDATE orders SET hubtelCheckoutId = ? WHERE id = ?",
             [hubtelJson.data.checkoutId, orderId],
           );
         } else {
-          console.warn("Hubtel checkout non-0000 response:", hubtelJson);
+          console.warn("[Hubtel] Non-0000 response:", hubtelJson);
         }
+      } else {
+        console.warn(
+          "[Hubtel] Missing credentials — HUBTEL_API_ID / HUBTEL_API_KEY / HUBTEL_MERCHANT_ACCOUNT",
+        );
       }
     } catch (hubtelErr) {
-      console.error("Hubtel checkout error (non-fatal):", hubtelErr);
+      console.error("[Hubtel] Checkout error (non-fatal):", hubtelErr);
     }
 
     // ── Response ────────────────────────────

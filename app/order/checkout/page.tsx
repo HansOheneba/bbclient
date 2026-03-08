@@ -127,6 +127,37 @@ export default function CheckoutPage() {
     return () => clearInterval(interval);
   }, [screen, checkoutData, confirmOrder]);
 
+  // ── postMessage listener (from /payment/success or /payment/cancelled) ───
+  // When Hubtel redirects the onsite-checkout iframe to our return/cancel URL,
+  // those pages fire a postMessage so we can transition immediately instead of
+  // waiting for the next polling tick.
+  React.useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      // Accept only messages from the same origin
+      if (event.origin !== window.location.origin) return;
+
+      const data = event.data as {
+        type?: string;
+        clientReference?: string;
+      } | null;
+      if (!data || !checkoutData) return;
+
+      // Make sure this message is for the current order
+      if (data.clientReference !== checkoutData.clientReference) return;
+
+      if (data.type === "HUBTEL_PAYMENT_SUCCESS") {
+        confirmOrder(checkoutData);
+        setScreen("success");
+      } else if (data.type === "HUBTEL_PAYMENT_CANCELLED") {
+        setPollStatus("Payment was cancelled.");
+        setScreen("failed");
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [checkoutData, confirmOrder]);
+
   // ── Validation ────────────────────────────
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -154,12 +185,14 @@ export default function CheckoutPage() {
       setCheckoutData(response);
 
       if (response.checkoutDirectUrl && response.clientReference) {
-        // Hubtel configured — move to payment screen
+        // Hubtel configured — move to payment screen (iframe)
         setScreen("payment");
       } else {
-        // No Hubtel — go straight to success
-        confirmOrder(response);
-        setScreen("success");
+        // Hubtel didn't return a checkout URL — likely a config/credential issue.
+        // Show an error so the user doesn't think they placed a free order.
+        setApiError(
+          "Payment gateway is temporarily unavailable. Please try again or contact us.",
+        );
       }
     } catch (err) {
       setApiError(
