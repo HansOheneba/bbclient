@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
-import type { RowDataPacket, ResultSetHeader } from "mysql2";
 
 /**
  * POST /api/orders/checkout
@@ -9,8 +8,6 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
  * Body: { phone, locationText, notes?, payeeName?, payeeEmail?, items: [...] }
  */
 export async function POST(request: NextRequest) {
-  const conn = await pool.getConnection();
-
   try {
     const body = await request.json();
     const { phone, locationText, notes, payeeName, payeeEmail, items } = body;
@@ -44,25 +41,22 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
 
-    await conn.beginTransaction();
-
     let totalPesewas = 0;
 
-    // Pre-validate every item and compute prices
-    const resolvedItems: Array<{
-      product: RowDataPacket;
-      variant: RowDataPacket | null;
+    type ResolvedItem = {
+      product: any;
+      variant: any | null;
       unitPesewas: number;
       quantity: number;
-      toppingsResolved: Array<{
-        topping: RowDataPacket;
-        priceApplied: number;
-      }>;
+      toppingsResolved: Array<{ topping: any; priceApplied: number }>;
       sugarLevel: string | null;
       spiceLevel: string | null;
       note: string | null;
-    }> = [];
+    };
 
+    const resolvedItems: ResolvedItem[] = [];
+
+    // ── Validate & price every item ─────────
     for (const item of items) {
       const {
         productId,
@@ -74,86 +68,84 @@ export async function POST(request: NextRequest) {
         note,
       } = item;
 
-      if (!productId || !quantity || quantity < 1) {
-        await conn.rollback();
+      if (!productId || !quantity || quantity < 1)
         return NextResponse.json(
           { message: "Each item needs productId and quantity >= 1" },
           { status: 400 },
         );
-      }
 
-      // Fetch product
-      const [prodRows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM products WHERE id = ? AND isActive = 1 AND inStock = 1",
-        [productId],
-      );
-      if (prodRows.length === 0) {
-        await conn.rollback();
+      // Fetch product (server-side price lookup — never trust client prices)
+      const { data: product } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .eq("is_active", true)
+        .eq("in_stock", true)
+        .single();
+
+      if (!product)
         return NextResponse.json(
           {
             message: `Product ${productId} not found, inactive, or out of stock`,
           },
           { status: 400 },
         );
-      }
-      const product = prodRows[0];
 
-      // Resolve variant
-      let variant: RowDataPacket | null = null;
+      let variant: any = null;
       let unitPesewas: number;
 
       if (variantId) {
-        const [varRows] = await conn.query<RowDataPacket[]>(
-          "SELECT * FROM product_variants WHERE id = ? AND productId = ?",
-          [variantId, productId],
-        );
-        if (varRows.length === 0) {
-          await conn.rollback();
+        const { data: variantData } = await supabase
+          .from("product_variants")
+          .select("*")
+          .eq("id", variantId)
+          .eq("product_id", productId)
+          .single();
+
+        if (!variantData)
           return NextResponse.json(
             {
               message: `Variant ${variantId} not found for product ${productId}`,
             },
             { status: 400 },
           );
-        }
-        variant = varRows[0];
-        unitPesewas = variant.priceInPesewas;
+
+        variant = variantData;
+        unitPesewas = variant.price_in_pesewas;
       } else {
-        if (product.priceInPesewas == null) {
-          await conn.rollback();
+        if (product.price_in_pesewas == null)
           return NextResponse.json(
             { message: `Product ${productId} requires a variant selection` },
             { status: 400 },
           );
-        }
-        unitPesewas = product.priceInPesewas;
+        unitPesewas = product.price_in_pesewas;
       }
 
-      // Resolve toppings
-      const toppingsResolved: Array<{
-        topping: RowDataPacket;
-        priceApplied: number;
-      }> = [];
+      // Resolve toppings (first one per item is free)
+      const toppingsResolved: Array<{ topping: any; priceApplied: number }> =
+        [];
 
       if (Array.isArray(toppings)) {
         for (let i = 0; i < toppings.length; i++) {
           const { toppingId } = toppings[i];
-          const [topRows] = await conn.query<RowDataPacket[]>(
-            "SELECT * FROM toppings WHERE id = ? AND isActive = 1 AND inStock = 1",
-            [toppingId],
-          );
-          if (topRows.length === 0) {
-            await conn.rollback();
+          const { data: toppingData } = await supabase
+            .from("toppings")
+            .select("*")
+            .eq("id", toppingId)
+            .eq("is_active", true)
+            .eq("in_stock", true)
+            .single();
+
+          if (!toppingData)
             return NextResponse.json(
               {
                 message: `Topping ${toppingId} not found, inactive, or out of stock`,
               },
               { status: 400 },
             );
-          }
-          // First topping per item is free
-          const priceApplied = i === 0 ? 0 : topRows[0].priceInPesewas;
-          toppingsResolved.push({ topping: topRows[0], priceApplied });
+
+          const priceApplied = i === 0 ? 0 : toppingData.price_in_pesewas;
+          toppingsResolved.push({ topping: toppingData, priceApplied });
         }
       }
 
@@ -161,8 +153,7 @@ export async function POST(request: NextRequest) {
         (s, t) => s + t.priceApplied,
         0,
       );
-      const itemTotal = (unitPesewas + toppingTotal) * quantity;
-      totalPesewas += itemTotal;
+      totalPesewas += (unitPesewas + toppingTotal) * quantity;
 
       resolvedItems.push({
         product,
@@ -180,56 +171,60 @@ export async function POST(request: NextRequest) {
     const clientReference = crypto.randomUUID().replace(/-/g, "").slice(0, 32);
 
     // ── Create Order ────────────────────────
-    const [orderResult] = await conn.query<ResultSetHeader>(
-      `INSERT INTO orders (phone, customerName, locationText, notes, status, paymentStatus, totalPesewas, clientReference, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
-      [
-        normalizedPhone,
-        payeeName?.trim() || null,
-        locationText,
-        notes?.trim() || null,
-        totalPesewas,
-        clientReference,
-      ],
-    );
-    const orderId = orderResult.insertId;
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        phone: normalizedPhone,
+        customer_name: payeeName?.trim() || null,
+        location_text: locationText,
+        notes: notes?.trim() || null,
+        status: "pending",
+        payment_status: "unpaid",
+        total_pesewas: totalPesewas,
+        client_reference: clientReference,
+      })
+      .select("id")
+      .single();
+
+    if (orderError) throw orderError;
+    const orderId = orderData.id;
 
     // ── Create OrderItems + OrderItemToppings ─
     for (const ri of resolvedItems) {
-      const [itemResult] = await conn.query<ResultSetHeader>(
-        `INSERT INTO order_items (orderId, productId, variantId, productName, variantLabel, unitPesewas, quantity, sugarLevel, spiceLevel, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          orderId,
-          ri.product.id,
-          ri.variant?.id ?? null,
-          ri.product.name,
-          ri.variant?.label ?? null,
-          ri.unitPesewas,
-          ri.quantity,
-          ri.sugarLevel,
-          ri.spiceLevel,
-          ri.note,
-        ],
-      );
-      const orderItemId = itemResult.insertId;
+      const { data: itemData, error: itemError } = await supabase
+        .from("order_items")
+        .insert({
+          order_id: orderId,
+          product_id: ri.product.id,
+          variant_id: ri.variant?.id ?? null,
+          product_name: ri.product.name,
+          variant_label: ri.variant?.label ?? null,
+          unit_pesewas: ri.unitPesewas,
+          quantity: ri.quantity,
+          sugar_level: ri.sugarLevel,
+          spice_level: ri.spiceLevel,
+          note: ri.note,
+        })
+        .select("id")
+        .single();
+
+      if (itemError) throw itemError;
+      const orderItemId = itemData.id;
 
       for (const tr of ri.toppingsResolved) {
-        await conn.query(
-          `INSERT INTO order_item_toppings (orderItemId, toppingId, toppingName, toppingBasePesewas, priceAppliedPesewas)
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            orderItemId,
-            tr.topping.id,
-            tr.topping.name,
-            tr.topping.priceInPesewas,
-            tr.priceApplied,
-          ],
-        );
+        const { error: toppingInsertError } = await supabase
+          .from("order_item_toppings")
+          .insert({
+            order_item_id: orderItemId,
+            topping_id: tr.topping.id,
+            topping_name: tr.topping.name,
+            topping_base_pesewas: tr.topping.price_in_pesewas,
+            price_applied_pesewas: tr.priceApplied,
+          });
+
+        if (toppingInsertError) throw toppingInsertError;
       }
     }
-
-    await conn.commit();
 
     // ── Derive base URL from request ─────────
     const proto =
@@ -238,13 +233,8 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get("host") ?? "localhost:3000";
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? `${proto}://${host}`;
 
-    // Construct Hubtel callback/return/cancel URLs.
-    // callbackUrl is mandatory — derive from the live hostname if env var absent.
     const callbackUrl =
       process.env.HUBTEL_CALLBACK_URL ?? `${baseUrl}/api/orders/callback`;
-
-    // Return / cancel URLs include clientReference so the landing pages know
-    // which order to display and can postMessage back to the checkout iframe.
     const returnUrl = `${baseUrl}/payment/success?ref=${clientReference}`;
     const cancelUrl = `${baseUrl}/payment/cancelled?ref=${clientReference}`;
 
@@ -302,11 +292,10 @@ export async function POST(request: NextRequest) {
           checkoutUrl = hubtelJson.data.checkoutUrl;
           checkoutDirectUrl = hubtelJson.data.checkoutDirectUrl;
 
-          // Persist hubtel checkout id
-          await pool.query(
-            "UPDATE orders SET hubtelCheckoutId = ? WHERE id = ?",
-            [hubtelJson.data.checkoutId, orderId],
-          );
+          await supabase
+            .from("orders")
+            .update({ hubtel_checkout_id: hubtelJson.data.checkoutId })
+            .eq("id", orderId);
         } else {
           console.warn("[Hubtel] Non-0000 response:", hubtelJson);
         }
@@ -331,13 +320,10 @@ export async function POST(request: NextRequest) {
       ...(checkoutDirectUrl ? { checkoutDirectUrl } : {}),
     });
   } catch (err) {
-    await conn.rollback().catch(() => {});
     console.error("POST /api/orders/checkout error:", err);
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 },
     );
-  } finally {
-    conn.release();
   }
 }

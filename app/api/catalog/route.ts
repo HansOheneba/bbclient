@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
-import type { RowDataPacket } from "mysql2";
+import { supabase } from "@/lib/supabase";
 
 /**
  * GET /api/catalog
@@ -13,87 +12,90 @@ export async function GET(request: NextRequest) {
     const categoryFilter = request.nextUrl.searchParams.get("category");
 
     // ── Categories ────────────────────────────
-    const [catRows] = await pool.query<RowDataPacket[]>(
-      "SELECT slug, name FROM categories ORDER BY sortOrder ASC",
-    );
+    const { data: catRows, error: catError } = await supabase
+      .from("categories")
+      .select("slug, name")
+      .order("sort_order", { ascending: true });
+    if (catError) throw catError;
 
     // ── Products ──────────────────────────────
-    let productQuery = `
-      SELECT
-        p.id, p.slug, p.name, p.description, p.image, p.inStock,
-        p.priceInPesewas, p.categoryId,
-        c.slug AS categorySlug
-      FROM products p
-      JOIN categories c ON c.id = p.categoryId
-      WHERE p.isActive = 1
-    `;
-    const productParams: unknown[] = [];
+    let productQueryBuilder = supabase
+      .from("products")
+      .select(
+        "id, slug, name, description, image, in_stock, price_in_pesewas, category_id, categories!inner(slug)",
+      )
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
 
     if (categoryFilter) {
-      productQuery += " AND c.slug = ?";
-      productParams.push(categoryFilter);
+      const { data: catData } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("slug", categoryFilter)
+        .single();
+      if (catData)
+        productQueryBuilder = productQueryBuilder.eq("category_id", catData.id);
     }
 
-    productQuery += " ORDER BY p.sortOrder ASC";
-
-    const [productRows] = await pool.query<RowDataPacket[]>(
-      productQuery,
-      productParams,
-    );
+    const { data: productRows, error: productError } =
+      await productQueryBuilder;
+    if (productError) throw productError;
 
     // ── Variants for those products ───────────
-    const productIds = productRows.map((p) => p.id);
-    let variantMap: Record<number, RowDataPacket[]> = {};
+    const productIds = (productRows ?? []).map((p) => p.id);
+    const variantMap: Record<number, any[]> = {};
 
     if (productIds.length > 0) {
-      const [variantRows] = await pool.query<RowDataPacket[]>(
-        `SELECT id, productId, \`key\`, label, priceInPesewas
-         FROM product_variants
-         WHERE productId IN (${productIds.map(() => "?").join(",")})
-         ORDER BY sortOrder ASC`,
-        productIds,
-      );
+      const { data: variantRows, error: variantError } = await supabase
+        .from("product_variants")
+        .select("id, product_id, key, label, price_in_pesewas")
+        .in("product_id", productIds)
+        .order("sort_order", { ascending: true });
+      if (variantError) throw variantError;
 
-      for (const v of variantRows) {
-        if (!variantMap[v.productId]) variantMap[v.productId] = [];
-        variantMap[v.productId].push(v);
+      for (const v of variantRows ?? []) {
+        if (!variantMap[v.product_id]) variantMap[v.product_id] = [];
+        variantMap[v.product_id].push(v);
       }
     }
 
     // ── Toppings ──────────────────────────────
-    const [toppingRows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, name, priceInPesewas, inStock FROM toppings WHERE isActive = 1 ORDER BY sortOrder ASC",
-    );
+    const { data: toppingRows, error: toppingError } = await supabase
+      .from("toppings")
+      .select("id, name, price_in_pesewas, in_stock")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (toppingError) throw toppingError;
 
     // ── Build response ────────────────────────
-    const items = productRows.map((p) => {
+    const items = (productRows ?? []).map((p) => {
       const variants = variantMap[p.id] ?? [];
       return {
         id: p.id,
         slug: p.slug,
         name: p.name,
         description: p.description,
-        category: p.categorySlug,
-        priceGhs: p.priceInPesewas != null ? p.priceInPesewas / 100 : null,
+        category: (p.categories as any)?.slug,
+        priceGhs: p.price_in_pesewas != null ? p.price_in_pesewas / 100 : null,
         options: variants.map((v) => ({
           id: v.id,
           key: v.key,
           label: v.label,
-          priceGhs: v.priceInPesewas / 100,
+          priceGhs: v.price_in_pesewas / 100,
         })),
         image: p.image,
-        inStock: Boolean(p.inStock),
+        inStock: Boolean(p.in_stock),
       };
     });
 
     return NextResponse.json({
-      categories: catRows.map((c) => ({ slug: c.slug, name: c.name })),
+      categories: (catRows ?? []).map((c) => ({ slug: c.slug, name: c.name })),
       items,
-      toppings: toppingRows.map((t) => ({
+      toppings: (toppingRows ?? []).map((t) => ({
         id: t.id,
         name: t.name,
-        priceGhs: t.priceInPesewas / 100,
-        inStock: Boolean(t.inStock),
+        priceGhs: t.price_in_pesewas / 100,
+        inStock: Boolean(t.in_stock),
       })),
     });
   } catch (err) {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
-import type { RowDataPacket } from "mysql2";
+import { supabase } from "@/lib/supabase";
 
 /**
  * GET /api/orders/[clientReference]/status
@@ -12,22 +11,21 @@ export async function GET(
   try {
     const { clientReference } = await params;
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT status, paymentStatus, totalPesewas, createdAt FROM orders WHERE clientReference = ?",
-      [clientReference],
-    );
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("status, payment_status, total_pesewas, created_at")
+      .eq("client_reference", clientReference)
+      .single();
 
-    if (rows.length === 0) {
+    if (error || !order) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    const order = rows[0];
-
     return NextResponse.json({
       status: order.status,
-      paymentStatus: order.paymentStatus,
-      totalGhs: order.totalPesewas / 100,
-      createdAt: order.createdAt,
+      paymentStatus: order.payment_status,
+      totalGhs: order.total_pesewas / 100,
+      createdAt: order.created_at,
     });
   } catch (err) {
     console.error("GET /api/orders/[clientReference]/status error:", err);

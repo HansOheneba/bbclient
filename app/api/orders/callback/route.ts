@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
-import type { RowDataPacket } from "mysql2";
+import { supabase } from "@/lib/supabase";
 
 /**
  * POST /api/orders/callback
@@ -30,17 +29,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the order
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT id, phone FROM orders WHERE clientReference = ?",
-      [clientReference],
-    );
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, phone")
+      .eq("client_reference", clientReference)
+      .single();
 
-    if (rows.length === 0) {
+    if (!order) {
       console.warn(`[Callback] Unknown clientReference: ${clientReference}`);
       return NextResponse.json({ received: true });
     }
 
-    const order = rows[0];
     const status = rawStatus.toLowerCase(); // "success" | "failed" | …
 
     console.log(
@@ -48,10 +47,14 @@ export async function POST(request: NextRequest) {
     );
 
     if (status === "success") {
-      await pool.query(
-        "UPDATE orders SET paymentStatus = 'paid', status = 'preparing', updatedAt = NOW() WHERE id = ?",
-        [order.id],
-      );
+      await supabase
+        .from("orders")
+        .update({
+          payment_status: "paid",
+          status: "preparing",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id);
       console.log(`[Callback] Order ${order.id} marked as PAID / preparing`);
 
       // Send SMS (non-fatal)
@@ -61,10 +64,13 @@ export async function POST(request: NextRequest) {
         console.error("[Callback] SMS send failed (non-fatal):", smsErr);
       }
     } else if (status === "failed") {
-      await pool.query(
-        "UPDATE orders SET paymentStatus = 'failed', updatedAt = NOW() WHERE id = ?",
-        [order.id],
-      );
+      await supabase
+        .from("orders")
+        .update({
+          payment_status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id);
       console.log(`[Callback] Order ${order.id} marked as FAILED`);
     } else {
       console.warn(
